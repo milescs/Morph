@@ -1,0 +1,26 @@
+[package]
+name = "morph-rs"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Native image codecs for Morph: SVG render (resvg), raster->SVG trace (vtracer), PNG quantize (quantizr) + optimize (oxipng)"
+publish = false
+
+[lib]
+name = "morph_rs"
+crate-type = ["staticlib"]
+
+[dependencies]
+resvg = { version = "0.48.1", default-features = true }
+vtracer = "=0.6.5"
+visioncortex = "=0.8.10"
+oxipng = { version = "10.2.1", default-features = false, features = ["parallel", "zopfli"] }
+quantizr = "1.4"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "unwind"
+debug = false
+strip = "debuginfo"

@@ -1,0 +1,5 @@
+module MorphRust {
+    header "morph_rs.h"
+    link "iconv"
+    export *
+}

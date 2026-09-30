@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+  <!-- Template image: macOS tints it for light/dark menu bars. -->
+  <rect x="3" y="16" width="17" height="17" rx="3.6" fill="none" stroke="#000" stroke-width="3"/>
+  <circle cx="25" cy="11" r="8.5" fill="#000"/>
+</svg>

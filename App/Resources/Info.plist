@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Morph</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>Morph</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2026 Miles Smith. Open source under the MIT License.</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSSupportsAutomaticTermination</key>
+	<false/>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Morph saves converted files next to your originals.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Morph saves converted files next to your originals.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Morph saves converted files next to your originals.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>Morph converts files stored on external drives.</string>
+	<key>NSNetworkVolumesUsageDescription</key>
+	<string>Morph converts files stored on network drives.</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Media</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.image</string>
+				<string>public.movie</string>
+				<string>public.audio</string>
+				<string>com.adobe.pdf</string>
+				<string>public.svg-image</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Folder</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>None</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.folder</string>
+			</array>
+		</dict>
+	</array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>org.matroska.mkv</string>
+			<key>UTTypeDescription</key>
+			<string>Matroska Video</string>
+			<key>UTTypeConformsTo</key>
+			<array><string>public.movie</string></array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array><string>mkv</string><string>mk3d</string></array>
+				<key>public.mime-type</key>
+				<array><string>video/x-matroska</string></array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>org.webmproject.webm</string>
+			<key>UTTypeDescription</key>
+			<string>WebM Video</string>
+			<key>UTTypeConformsTo</key>
+			<array><string>public.movie</string></array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array><string>webm</string></array>
+				<key>public.mime-type</key>
+				<array><string>video/webm</string></array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>org.xiph.opus</string>
+			<key>UTTypeDescription</key>
+			<string>Opus Audio</string>
+			<key>UTTypeConformsTo</key>
+			<array><string>public.audio</string></array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array><string>opus</string></array>
+				<key>public.mime-type</key>
+				<array><string>audio/opus</string></array>
+			</dict>
+		</dict>
+	</array>
+	<key>NSServices</key>
+	<array>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Convert with Morph</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>convertFiles</string>
+			<key>NSPortName</key>
+			<string>Morph</string>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.image</string>
+				<string>public.movie</string>
+				<string>public.audio</string>
+				<string>com.adobe.pdf</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Compress with Morph</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>compressFiles</string>
+			<key>NSPortName</key>
+			<string>Morph</string>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.image</string>
+				<string>public.movie</string>
+				<string>public.audio</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

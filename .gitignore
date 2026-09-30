@@ -1,0 +1,26 @@
+# Xcode
+*.xcodeproj/
+xcuserdata/
+DerivedData/
+build/
+*.xcresult
+
+# SwiftPM
+.build/
+.swiftpm/
+MorphKit/.build/
+MorphKit/Package.resolved
+
+# Rust
+Vendor/morph-rs/target/
+
+# Generated binaries (reproducible via scripts/)
+MorphKit/Binaries/
+Vendor/ffmpeg/
+Vendor/ffmpeg-build/
+Vendor/ffmpeg-build-script/
+
+# macOS
+.DS_Store
+Vendor/*.log
+Vendor/ffmpeg-build-shims/

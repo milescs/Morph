@@ -1,0 +1,56 @@
+name: Morph
+options:
+  bundleIdPrefix: com.milessmith
+  deploymentTarget:
+    macOS: "26.0"
+  developmentLanguage: en
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    ARCHS: arm64
+    MACOSX_DEPLOYMENT_TARGET: "26.0"
+    DEVELOPMENT_TEAM: NWTRA7934U
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_HARDENED_RUNTIME: YES
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEAD_CODE_STRIPPING: YES
+packages:
+  MorphKit:
+    path: MorphKit
+targets:
+  Morph:
+    type: application
+    platform: macOS
+    sources:
+      - path: App
+    dependencies:
+      - package: MorphKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.milessmith.Morph
+        PRODUCT_NAME: Morph
+        INFOPLIST_FILE: App/Resources/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: App/Resources/Morph.entitlements
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_APPROACHABLE_CONCURRENCY: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        COMBINE_HIDPI_IMAGES: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+    postBuildScripts:
+      - name: Embed FFmpeg
+        script: '"${SRCROOT}/scripts/embed-ffmpeg.sh"'
+        basedOnDependencyAnalysis: false
+schemes:
+  Morph:
+    build:
+      targets:
+        Morph: all
+    run:
+      config: Debug
+    archive:
+      config: Release
