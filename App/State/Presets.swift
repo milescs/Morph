@@ -2,12 +2,47 @@ import Foundation
 import MorphKit
 
 /// One-click conversions offered in the menu bar (and when dropping on its icon).
-enum QuickAction: String, CaseIterable, Identifiable, Codable {
+enum QuickAction: Hashable, Identifiable, RawRepresentable {
     case toJPEG, toPNG, toWebP, toHEIC, toMP4, toGIF, compress, toMP3
+    /// Fit for a destination preset ("Email", "Discord" …), by id.
+    case destination(String)
 
+    static let builtIns: [QuickAction] = [.toJPEG, .toPNG, .toWebP, .toHEIC, .toMP4, .toGIF, .compress, .toMP3]
     static let defaults: [QuickAction] = [.toJPEG, .toWebP, .toMP4, .compress, .toMP3]
 
+    init?(rawValue: String) {
+        if rawValue.hasPrefix("destination:") {
+            self = .destination(String(rawValue.dropFirst("destination:".count)))
+            return
+        }
+        guard let match = Self.builtIns.first(where: { $0.rawValue == rawValue }) else { return nil }
+        self = match
+    }
+
+    var rawValue: String {
+        switch self {
+        case .toJPEG: "toJPEG"
+        case .toPNG: "toPNG"
+        case .toWebP: "toWebP"
+        case .toHEIC: "toHEIC"
+        case .toMP4: "toMP4"
+        case .toGIF: "toGIF"
+        case .compress: "compress"
+        case .toMP3: "toMP3"
+        case .destination(let id): "destination:\(id)"
+        }
+    }
+
     var id: String { rawValue }
+
+    var destination: Destination? {
+        if case .destination(let id) = self { DestinationStore.shared.destination(id: id) } else { nil }
+    }
+
+    /// False for a destination that's no longer in the catalog.
+    var isAvailable: Bool {
+        if case .destination = self { destination != nil } else { true }
+    }
 
     var title: String {
         switch self {
@@ -19,6 +54,7 @@ enum QuickAction: String, CaseIterable, Identifiable, Codable {
         case .toGIF: "GIF"
         case .compress: "Compress"
         case .toMP3: "MP3"
+        case .destination: destination?.name ?? "Destination"
         }
     }
 
@@ -30,6 +66,7 @@ enum QuickAction: String, CaseIterable, Identifiable, Codable {
         case .toGIF: "sparkles.rectangle.stack"
         case .compress: "arrow.down.right.and.arrow.up.left"
         case .toMP3: "music.note"
+        case .destination: destination?.symbol ?? "paperplane"
         }
     }
 
@@ -38,6 +75,7 @@ enum QuickAction: String, CaseIterable, Identifiable, Codable {
         case .compress: "Same format"
         case .toMP3: "Audio only"
         case .toGIF: "From video"
+        case .destination: destination.map { $0.badge.isEmpty ? "Fit" : "Fit · \($0.badge)" } ?? "Fit"
         default: "Convert"
         }
     }
@@ -46,6 +84,8 @@ enum QuickAction: String, CaseIterable, Identifiable, Codable {
     func settings(for kind: MediaKind, base: ConversionSettings) -> ConversionSettings? {
         var settings = base
         switch (self, kind) {
+        case (.destination, _):
+            return destination?.settings(for: kind, keepingPrivacyFrom: base)
         case (.toJPEG, .image), (.toJPEG, .pdf): settings.target = .jpeg
         case (.toPNG, .image), (.toPNG, .pdf): settings.target = .png
         case (.toWebP, .image), (.toWebP, .pdf): settings.target = .webp
@@ -54,7 +94,7 @@ enum QuickAction: String, CaseIterable, Identifiable, Codable {
         case (.toMP4, .video): settings.target = .mp4H264
         case (.toGIF, .video): settings.target = .gifAnimated
         case (.toMP3, .video), (.toMP3, .audio): settings.target = .mp3
-        case (.compress, .image), (.compress, .video), (.compress, .audio):
+        case (.compress, _):
             settings.target = .original
             settings.image.quality = min(settings.image.quality, 0.7)
             settings.video.quality = min(settings.video.quality, 0.5)

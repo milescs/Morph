@@ -32,6 +32,25 @@
 	<string>NSApplication</string>
 	<key>NSSupportsAutomaticTermination</key>
 	<false/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/milescs/Morph/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>$(SPARKLE_PUBLIC_KEY)</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.milessmith.Morph</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>morph</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSDesktopFolderUsageDescription</key>
 	<string>Morph saves converted files next to your originals.</string>
 	<key>NSDocumentsFolderUsageDescription</key>
@@ -160,6 +179,7 @@
 				<string>public.image</string>
 				<string>public.movie</string>
 				<string>public.audio</string>
+				<string>com.adobe.pdf</string>
 			</array>
 		</dict>
 	</array>

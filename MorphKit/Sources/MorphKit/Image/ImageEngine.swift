@@ -20,7 +20,7 @@ public enum ImageEngine {
     public static let writableFormats: Set<FileFormat> = [.jpeg, .png, .heic, .avif, .webp, .tiff, .gif, .bmp, .jp2,
                                                           .ico, .icns, .pdf, .svg]
 
-    /// The concrete image format produced for `target` from `source`.
+    /// The concrete image format produced for `target` from `source` (nil for `.auto`, which needs the item).
     public static func outputFormat(for target: OutputFormat, source: FileFormat) -> FileFormat? {
         if target == .original {
             return writableFormats.contains(source) && source != .svg && source != .pdf ? source : nil
@@ -28,10 +28,26 @@ public enum ImageEngine {
         return target.imageFormat
     }
 
+    /// The concrete image format produced for `target` from `item`.
+    public static func outputFormat(for target: OutputFormat, item: MediaItem) -> FileFormat? {
+        target == .auto ? autoFormat(for: item) : outputFormat(for: target, source: item.format)
+    }
+
+    /// "Auto": the most compatible format for this particular file.
+    public static func autoFormat(for item: MediaItem) -> FileFormat {
+        let info = item.info?.image
+        if info?.isAnimated == true { return .gif }
+        switch item.format {
+        case .jpeg, .png, .gif: return item.format
+        case .bmp, .ico, .icns, .svg, .pdf: return .png
+        default: return info?.hasAlpha == true ? .png : .jpeg
+        }
+    }
+
     /// Converts one file. For PDFs, `page` selects the (1-based) page.
     public static func convert(item: MediaItem, target: OutputFormat, options: ImageOptions,
                                page: Int = 1) throws -> ImageEncodeResult {
-        guard let format = outputFormat(for: target, source: item.format) else {
+        guard let format = outputFormat(for: target, item: item) else {
             throw ImageEngineError("\(item.format.displayName) files can't be saved in their original format.")
         }
         let (input, preferredSize) = try loadInput(item: item, format: format, options: options, page: page)
@@ -194,15 +210,26 @@ public enum ImageEngine {
             if sameSize, !needsFlatten, options.colorProfile == .keep, options.metadata != .removeAll,
                let source = input.imageSource, input.frameCount <= 1 || !options.keepAnimation {
                 let index = CGImageSourceGetPrimaryImageIndex(source)
-                return try ImageEncoder.writeFromSource(source, index: index, format: format, quality: quality,
-                                                        options: options)
+                // Some sources (e.g. multi-page or unusual TIFFs) can't be copied straight into every
+                // format; those take the decode-and-encode path below.
+                if let data = try? ImageEncoder.writeFromSource(source, index: index, format: format, quality: quality,
+                                                                options: options) {
+                    return data
+                }
             }
             let image = try prepared(input: input, size: size, options: options, background: background,
                                      highBitDepth: format == .tiff)
             let metadata = MetadataPayload.from(input: input, policy: options.metadata)
             let props = ImageEncoder.encodingProperties(format: format, quality: quality, options: options,
                                                         base: metadata.properties)
-            return try ImageEncoder.writeImageIO(images: [(image, props)], format: format)
+            do {
+                return try ImageEncoder.writeImageIO(images: [(image, props)], format: format)
+            } catch {
+                // Some encoders (e.g. HEIC) reject float or deep grayscale pixels: retry as 8-bit RGB.
+                let rgb = try ImageRendering.redraw(image, size: size, colorSpace: ImageRendering.sRGB,
+                                                    background: background)
+                return try ImageEncoder.writeImageIO(images: [(rgb, props)], format: format)
+            }
         }
     }
 

@@ -49,6 +49,7 @@ public struct ProgressParser: Sendable {
 public struct FFmpegError: Error, LocalizedError, Sendable {
     public let message: String
     public let log: String
+    public var suggestion: String? = nil
 
     public var errorDescription: String? { message }
 }
@@ -86,16 +87,28 @@ public struct FFmpegEngine: Sendable {
             return Output(note: nil)
         }
 
+        var fallbackNote: String?
+        var reached = 0.0
         do {
-            try await run(plan: plan, input: item.url, output: output, progress: progress)
-        } catch let error as FFmpegError where plan.videoEncoder?.isHardware == true {
-            // Hardware encoder unavailable (e.g. too many sessions): retry in software.
-            guard let fallback = plan.videoEncoder?.softwareFallback, capabilities.hasEncoder(fallback.ffmpegName) else {
+            reached = try await run(plan: plan, input: item.url, output: output, progress: progress)
+        } catch let error as FFmpegError {
+            if plan.hardwareDecode && Self.isDecodeFailure(error.log) {
+                // Apple's hardware decoder rejects some streams that decode fine in software.
+                plan.hardwareDecode = false
+            } else if plan.videoEncoder?.isHardware == true, let fallback = plan.videoEncoder?.softwareFallback,
+                      capabilities.hasEncoder(fallback.ffmpegName) {
+                // Hardware encoder unavailable (e.g. too many sessions): retry in software.
+                plan.videoEncoder = fallback
+                fallbackNote = "Used \(fallback.displayName) because hardware encoding failed"
+            } else {
                 throw error
             }
-            plan.videoEncoder = fallback
-            try await run(plan: plan, input: item.url, output: output, progress: progress)
-            return Output(note: "Used \(fallback.displayName) because hardware encoding failed")
+            reached = try await run(plan: plan, input: item.url, output: output, progress: progress)
+        }
+        // A file whose index promises more than its data holds (e.g. a partial download).
+        if [.video, .audioOnly].contains(plan.mode), plan.duration > 2, reached > 0,
+           plan.duration - reached > max(1, plan.duration * 0.1) {
+            fallbackNote = "The file ends early: converted \(Formatters.duration(reached)) of \(Formatters.duration(plan.duration))"
         }
 
         // Size limit: one corrective pass if the encoder overshot.
@@ -107,7 +120,14 @@ public struct FFmpegEngine: Sendable {
                 return Output(note: "Came out at \(Formatters.bytes(newSize)); the limit was \(Formatters.bytes(limit))")
             }
         }
-        return Output(note: nil)
+        return Output(note: fallbackNote)
+    }
+
+    /// Whether a failure came from decoding the input (so software decoding may succeed).
+    static func isDecodeFailure(_ log: String) -> Bool {
+        ["Decode error rate", "hardware accelerator failed", "Failed setup for format videotoolbox",
+         "Error while decoding", "error while decoding", "Error submitting packet to decoder"]
+            .contains { log.contains($0) }
     }
 
     func limitFor(settings: ConversionSettings) -> Int64? {
@@ -133,7 +153,8 @@ public struct FFmpegEngine: Sendable {
 
     // MARK: - Running
 
-    func run(plan: MediaPlan, input: URL, output: URL, progress: ProgressHandler?) async throws {
+    @discardableResult
+    func run(plan: MediaPlan, input: URL, output: URL, progress: ProgressHandler?) async throws -> Double {
         let passDir = FileManager.default.temporaryDirectory.appending(path: "morph-pass-\(UUID().uuidString)")
         if plan.twoPass { try FileManager.default.createDirectory(at: passDir, withIntermediateDirectories: true) }
         defer { if plan.twoPass { try? FileManager.default.removeItem(at: passDir) } }
@@ -141,25 +162,31 @@ public struct FFmpegEngine: Sendable {
         let passes = FFmpegCommandBuilder.passes(plan: plan, input: input, output: output,
                                                  passLogPrefix: passDir.appending(path: "pass"),
                                                  capabilities: capabilities)
+        var reached = 0.0
         for (index, arguments) in passes.enumerated() {
             let base = Double(index) / Double(passes.count)
             let span = 1 / Double(passes.count)
             let passesLeft = Double(passes.count - index - 1)
-            try await Self.execute(tools.ffmpeg, arguments: arguments, duration: plan.duration) { fraction, remaining in
+            reached = try await Self.execute(tools.ffmpeg, arguments: arguments, duration: plan.duration) { fraction, remaining in
                 // Assume later passes take about as long as this one.
                 let perPass = remaining.map { fraction < 0.999 ? $0 / max(0.001, 1 - fraction) : 0 }
                 progress?(base + fraction * span, remaining.map { $0 + passesLeft * (perPass ?? 0) })
             }
         }
+        return reached
     }
 
     /// Runs one ffmpeg invocation with progress and cancellation.
+    /// Returns how far into the media the output got (seconds), from ffmpeg's progress reports.
+    @discardableResult
     static func execute(_ executable: URL, arguments: [String], duration: Double,
-                        progress: (@Sendable (Double, Double?) -> Void)?) async throws {
+                        progress: (@Sendable (Double, Double?) -> Void)?) async throws -> Double {
         let parser = Mutex(ProgressParser())
+        let reached = Mutex(0.0)
         let started = Date()
         let output = try await ChildProcess.run(executable, arguments: arguments) { line in
             guard let update = parser.withLock({ $0.consume(line) }) else { return }
+            reached.withLock { $0 = max($0, update.outTime) }
             guard duration > 0 else { return }
             let fraction = min(1, max(0, update.outTime / duration))
             var remaining: Double?
@@ -173,16 +200,10 @@ public struct FFmpegEngine: Sendable {
         try Task.checkCancellation()
         guard output.status == 0 else {
             let log = output.stderrText.trimmingCharacters(in: .whitespacesAndNewlines)
-            let lastLine = log.split(separator: "\n").last.map(String.init) ?? "FFmpeg exited with status \(output.status)"
-            throw FFmpegError(message: Self.friendly(lastLine), log: log)
+            let explanation = FriendlyErrors.explain(ffmpegLog: log, exitStatus: output.status)
+            throw FFmpegError(message: explanation.message, log: log, suggestion: explanation.suggestion)
         }
-    }
-
-    static func friendly(_ line: String) -> String {
-        if line.contains("No space left") { return "The disk is full." }
-        if line.contains("Permission denied") { return "Morph doesn't have permission to write here." }
-        if line.contains("Invalid data found") { return "The file is damaged or not a supported format." }
-        return line
+        return reached.withLock { $0 }
     }
 
     // MARK: - Frames
@@ -253,9 +274,22 @@ public struct FFmpegEngine: Sendable {
                 args[formatIndex + 1] = sample.mode == .video ? "matroska" : sample.container
             }
             let size = Mutex<Int64>(0)
-            let output = try await ChildProcess.run(tools.ffmpeg, arguments: args) { line in
+            var output = try await ChildProcess.run(tools.ffmpeg, arguments: args) { line in
                 if line.hasPrefix("total_size="), let v = Int64(line.dropFirst("total_size=".count)) {
                     size.withLock { $0 = v }
+                }
+            }
+            if output.status != 0 && sample.hardwareDecode && Self.isDecodeFailure(output.stderrText) {
+                sample.hardwareDecode = false
+                plan.hardwareDecode = false
+                args = FFmpegCommandBuilder.passes(plan: sample, input: item.url, output: null, capabilities: capabilities)[0]
+                if let formatIndex = args.lastIndex(of: "-f") {
+                    args[formatIndex + 1] = sample.mode == .video ? "matroska" : sample.container
+                }
+                output = try await ChildProcess.run(tools.ffmpeg, arguments: args) { line in
+                    if line.hasPrefix("total_size="), let v = Int64(line.dropFirst("total_size=".count)) {
+                        size.withLock { $0 = v }
+                    }
                 }
             }
             guard output.status == 0 else {

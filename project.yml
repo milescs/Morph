@@ -13,12 +13,15 @@ settings:
     DEVELOPMENT_TEAM: NWTRA7934U
     CODE_SIGN_STYLE: Automatic
     ENABLE_HARDENED_RUNTIME: YES
-    MARKETING_VERSION: "1.0.0"
-    CURRENT_PROJECT_VERSION: "1"
+    MARKETING_VERSION: "1.1.0"
+    CURRENT_PROJECT_VERSION: "2"
     DEAD_CODE_STRIPPING: YES
 packages:
   MorphKit:
     path: MorphKit
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.10.0
 targets:
   Morph:
     type: application
@@ -27,6 +30,9 @@ targets:
       - path: App
     dependencies:
       - package: MorphKit
+      - package: Sparkle
+      - target: MorphCompressAction
+      - target: MorphConvertAction
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.milessmith.Morph
@@ -41,10 +47,40 @@ targets:
         ENABLE_USER_SCRIPT_SANDBOXING: NO
         COMBINE_HIDPI_IMAGES: YES
         LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+        # Sparkle's EdDSA public key (the private key lives in the release machine's keychain).
+        SPARKLE_PUBLIC_KEY: "CY5hClXG7EYtiMJlzpmub/WPw1Rf1SvTJJsG85Jimow="
     postBuildScripts:
       - name: Embed FFmpeg
         script: '"${SRCROOT}/scripts/embed-ffmpeg.sh"'
         basedOnDependencyAnalysis: false
+  MorphCompressAction:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Extensions/QuickActions
+        excludes: ["*.plist", "*.entitlements"]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.milessmith.Morph.CompressAction
+        PRODUCT_NAME: MorphCompressAction
+        INFOPLIST_FILE: Extensions/QuickActions/Compress-Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: Extensions/QuickActions/QuickActions.entitlements
+        SKIP_INSTALL: YES
+  MorphConvertAction:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Extensions/QuickActions
+        excludes: ["*.plist", "*.entitlements"]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.milessmith.Morph.ConvertAction
+        PRODUCT_NAME: MorphConvertAction
+        INFOPLIST_FILE: Extensions/QuickActions/Convert-Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: Extensions/QuickActions/QuickActions.entitlements
+        SKIP_INSTALL: YES
 schemes:
   Morph:
     build:

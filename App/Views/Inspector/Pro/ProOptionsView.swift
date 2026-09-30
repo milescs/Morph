@@ -17,6 +17,8 @@ struct ProOptionsView: View {
     var body: some View {
         let target = model.settings(for: kind).target
         switch (kind, target.category) {
+        case (.pdf, .original):
+            PDFCompressProOptions(kind: kind)
         case (_, .video), (.video, .original):
             VideoProOptions(kind: kind)
         case (_, .animated):
@@ -28,6 +30,32 @@ struct ProOptionsView: View {
             ImageProOptions(kind: kind)
         default:
             ImageProOptions(kind: kind)
+        }
+    }
+}
+
+// MARK: - PDF compression
+
+struct PDFCompressProOptions: View {
+    let kind: MediaKind
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Section {
+            Picker("Image resolution", selection: model.binding(kind, \.image.pdfImageDPI)) {
+                Text("Automatic (from quality)").tag(Int?.none)
+                ForEach([300, 200, 150, 110, 72], id: \.self) { Text("\($0) dpi").tag(Int?.some($0)) }
+            }
+            Picker("Title and author", selection: Binding(
+                get: { model.settings(for: kind).image.metadata == .removeAll },
+                set: { remove in model.update(kind) { $0.image.metadata = remove ? .removeAll : .removeLocation } })) {
+                Text("Keep").tag(false)
+                Text("Remove").tag(true)
+            }
+        } header: {
+            Text("PDF compression")
+        } footer: {
+            Text("150 dpi is sharp on screens; 300 dpi is print quality. Pages without images barely change, and Morph never makes a PDF bigger.")
         }
     }
 }
@@ -117,10 +145,10 @@ struct ImageProOptions: View {
             if [.webp, .avif, .heic, .jp2].contains(format) {
                 Toggle("Lossless", isOn: model.binding(kind, \.image.lossless))
             }
-            if format == .jpeg {
+            if format == .jpeg || target == .auto {
                 Toggle("Progressive (loads gradually on the web)", isOn: model.binding(kind, \.image.progressive))
             }
-            if format == .png || target == .original {
+            if format == .png || target == .original || target == .auto {
                 Picker("PNG compression effort", selection: model.binding(kind, \.image.pngOptimization)) {
                     ForEach(0...6, id: \.self) { Text($0 == 0 ? "Fastest" : $0 == 6 ? "Maximum (slow)" : "Level \($0)").tag($0) }
                 }
@@ -406,7 +434,9 @@ struct VideoProOptions: View {
         }
 
         Section("Output") {
-            Toggle("Remove metadata (location, dates, camera)", isOn: model.binding(kind, \.video.stripMetadata))
+            Toggle("Remove location", isOn: model.binding(kind, \.video.removeLocation))
+                .disabled(model.settings(for: kind).video.stripMetadata)
+            Toggle("Remove all metadata (location, dates, camera)", isOn: model.binding(kind, \.video.stripMetadata))
             if [.mp4, .mov, .m4v].contains(container) {
                 Toggle("Optimize for web streaming", isOn: model.binding(kind, \.video.fastStart))
             }

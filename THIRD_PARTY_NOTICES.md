@@ -2,7 +2,7 @@
 
 - **Morph's own source code** is licensed under the **MIT License** (see `LICENSE`).
 - **The Morph app executable** links only permissively licensed code: MIT, BSD, Apache-2.0 and zlib.
-- **macOS system frameworks** are used alongside that code: SwiftUI, AppKit, ImageIO, Core Graphics, PDFKit, VideoToolbox, AudioToolbox and Quick Look.
+- **macOS system frameworks** are used alongside that code: SwiftUI, AppKit, ImageIO, Core Graphics, PDFKit, Quartz filters, VideoToolbox, AudioToolbox, App Intents and Quick Look.
 
 **Binary downloads also include two separate programs, `ffmpeg` and `ffprobe`.** Morph starts them as child processes and talks to them only through command-line arguments and pipes.
 - They are **not** covered by Morph's MIT license.
@@ -80,6 +80,13 @@ All transitive Rust dependencies can be listed with `cargo tree --manifest-path 
 ### libwebp
 libwebp 1.6.0 (BSD-3-Clause) is compiled from source through the
 [SDWebImage/libwebp-Xcode](https://github.com/SDWebImage/libwebp-Xcode) Swift package.
+
+## App updates
+
+### Sparkle
+[Sparkle](https://sparkle-project.org) 2.10 (MIT) checks for, downloads and installs updates.
+It's embedded as `Sparkle.framework`, from the official Swift package. Updates are verified with
+an EdDSA signature and Apple's code signature before they're installed.
 
 ## Build tools (not shipped)
 

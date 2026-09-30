@@ -35,7 +35,7 @@ public enum ConversionEvent: Sendable {
     case started(jobID: UUID)
     case progress(jobID: UUID, fraction: Double, remaining: Double?)
     case finished(jobID: UUID, outcome: JobOutcome)
-    case failed(jobID: UUID, message: String, log: String?)
+    case failed(jobID: UUID, message: String, suggestion: String?, log: String?)
     case cancelled(jobID: UUID)
 }
 
@@ -241,13 +241,16 @@ public actor ConversionQueue {
                 if Task.isCancelled {
                     continuation.yield(.cancelled(jobID: id))
                 } else {
-                    continuation.yield(.failed(jobID: id, message: error.message, log: error.log))
+                    continuation.yield(.failed(jobID: id, message: error.message, suggestion: error.suggestion,
+                                               log: error.log))
                 }
             } catch {
                 if Task.isCancelled {
                     continuation.yield(.cancelled(jobID: id))
                 } else {
-                    continuation.yield(.failed(jobID: id, message: error.localizedDescription, log: nil))
+                    let explanation = FriendlyErrors.explain(error)
+                    continuation.yield(.failed(jobID: id, message: explanation.message,
+                                               suggestion: explanation.suggestion, log: nil))
                 }
             }
             await self?.jobDidFinish(id, need: need)

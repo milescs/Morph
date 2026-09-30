@@ -97,7 +97,9 @@ public enum FFProbe {
             "-v", "error", "-print_format", "json", "-show_format", "-show_streams", "--", url.path,
         ])
         guard output.status == 0 else {
-            throw ProbeError.unreadable(output.stderrText.isEmpty ? "This file can't be read." : "This file can't be read (\(output.stderrText.trimmingCharacters(in: .whitespacesAndNewlines))).")
+            let log = output.stderrText.trimmingCharacters(in: .whitespacesAndNewlines)
+            throw ProbeError.unreadable(log.isEmpty ? "This file can't be read."
+                : FriendlyErrors.explain(ffmpegLog: log, exitStatus: output.status).message)
         }
         return try parse(json: output.stdout)
     }
@@ -225,7 +227,9 @@ public enum MediaProbe {
     /// Basic, synchronous identification (no decoding). Returns nil for unsupported files.
     public static func item(for url: URL) -> MediaItem? {
         let keys: Set<URLResourceKey> = [.contentTypeKey, .fileSizeKey, .contentModificationDateKey, .isRegularFileKey]
-        guard let values = try? url.resourceValues(forKeys: keys), values.isRegularFile == true else { return nil }
+        // Symlinks are read through (the item keeps the link's path, so outputs land next to it).
+        guard let values = try? url.resolvingSymlinksInPath().resourceValues(forKeys: keys),
+              values.isRegularFile == true else { return nil }
         guard let format = FileFormat.detect(url: url, contentType: values.contentType) else { return nil }
         return MediaItem(url: url, format: format, fileSize: Int64(values.fileSize ?? 0),
                          modificationDate: values.contentModificationDate ?? .distantPast)

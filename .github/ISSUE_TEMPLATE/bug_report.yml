@@ -1,0 +1,27 @@
+name: Report a problem
+description: Something didn't convert, or Morph misbehaved.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping make Morph better. If you used **Report a Problem…** in Morph, the diagnostics below are already filled in. They describe the file (format, codecs, size range) but never include its name, its location or its contents.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you try, and what did you expect?
+      placeholder: I converted an iPhone video to MP4 and…
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Filled in by Morph. Remove anything you'd rather not share.
+      render: text
+  - type: textarea
+    id: sample
+    attributes:
+      label: Can you share a sample file?
+      description: Optional. A file that shows the problem helps a lot. Only attach it if it's fine for it to be public.

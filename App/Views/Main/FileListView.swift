@@ -84,7 +84,7 @@ struct FileListView: View {
     static func canCompare(_ entry: FileEntry, model: AppModel) -> Bool {
         let settings = model.settings(for: entry.kind)
         guard ConversionPipeline.route(for: entry.item, target: settings.target) == .image,
-              let format = settings.target == .original ? entry.item.format : settings.target.imageFormat else { return false }
+              let format = ImageEngine.outputFormat(for: settings.target, item: entry.item) else { return false }
         return ![.pdf, .svg, .ico, .icns].contains(format) && settings.target != .pdfCombined
     }
 

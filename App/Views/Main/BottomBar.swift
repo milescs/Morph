@@ -53,6 +53,7 @@ struct BottomBar: View {
             .foregroundStyle(.secondary)
             .monospacedDigit()
             .animation(.snappy, value: totals.estimatedBytes)
+            BatchSummaryLine()
         }
         Spacer()
         Button {
@@ -151,5 +152,28 @@ struct BottomBar: View {
             return "Saved \(Formatters.bytes(summary.savedBytes)) (\(Formatters.change(from: summary.originalBytes, to: summary.outputBytes))) in \(time)"
         }
         return "\(Formatters.bytes(summary.outputBytes)) in \(time)"
+    }
+}
+
+/// "Fit for Discord · 12 images → Auto · 3 videos → MP4 H.264": what Convert will do, per kind.
+struct BatchSummaryLine: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let parts = model.kindSummaries.map { "\($0.noun) → \($0.target)" }
+        HStack(spacing: 6) {
+            if let destination = model.activeDestination {
+                Label("Fit for \(destination.name)", systemImage: destination.symbol)
+                    .foregroundStyle(.tint)
+                    .fontWeight(.semibold)
+                    .fixedSize()
+            }
+            Text(parts.joined(separator: "  ·  "))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .help(parts.joined(separator: "\n"))
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
 }

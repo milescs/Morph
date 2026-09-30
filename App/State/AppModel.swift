@@ -13,6 +13,8 @@ final class AppModel {
     let settings = SettingsStore.shared
     private(set) var entries: [FileEntry] = []
     private(set) var conversionSettings: [MediaKind: ConversionSettings] = [:]
+    /// The destination preset the current settings came from ("Fit for Discord"), until they're edited.
+    private(set) var activeDestination: Destination?
     var selectedKind: MediaKind = .image
     var selection: Set<UUID> = []
     var isDropTargeted = false
@@ -36,6 +38,9 @@ final class AppModel {
     private init() {
         for kind in MediaKind.allCases {
             conversionSettings[kind] = settings.conversionSettings(for: kind)
+        }
+        if let id = UserDefaults.standard.string(forKey: "activeDestination") {
+            activeDestination = DestinationStore.shared.destination(id: id)
         }
         loadRecents()
         setupTask = Task { await setUpEngines() }
@@ -138,7 +143,7 @@ final class AppModel {
                 entry.item.info = info
                 entry.probe = .ready
             case .failure(let error):
-                entry.probe = .failed(error.localizedDescription)
+                entry.probe = .failed(FriendlyErrors.explain(error).message)
             }
         }
         _ = results
@@ -225,12 +230,77 @@ final class AppModel {
         guard value != conversionSettings[kind] else { return }
         conversionSettings[kind] = value
         settings.remember(value, for: kind)
+        setActiveDestination(nil)
         recomputeEstimates(kinds: [kind])
     }
 
     func apply(preset: Preset) {
         update(preset.kind) { $0 = preset.settings }
         selectedKind = preset.kind
+    }
+
+    /// Sets every kind the destination covers to what fits there; other kinds keep their settings.
+    func apply(destination: Destination?) {
+        guard let destination else {
+            setActiveDestination(nil)
+            return
+        }
+        for kind in MediaKind.allCases {
+            guard let fitted = destination.settings(for: kind, keepingPrivacyFrom: settings(for: kind)) else { continue }
+            conversionSettings[kind] = fitted
+            settings.remember(fitted, for: kind)
+        }
+        setActiveDestination(destination)
+        normalizeTargets()
+        recomputeEstimates()
+    }
+
+    private func setActiveDestination(_ destination: Destination?) {
+        guard activeDestination?.id != destination?.id else { return }
+        activeDestination = destination
+        UserDefaults.standard.set(destination?.id, forKey: "activeDestination")
+    }
+
+    /// "12 images → JPEG", one entry per kind in the list (for the bar above Convert).
+    struct KindSummary: Identifiable {
+        let kind: MediaKind
+        let count: Int
+        let target: String
+        var id: MediaKind { kind }
+
+        var noun: String {
+            switch kind {
+            case .image: count == 1 ? "1 image" : "\(count) images"
+            case .video: count == 1 ? "1 video" : "\(count) videos"
+            case .audio: count == 1 ? "1 audio file" : "\(count) audio files"
+            case .pdf: count == 1 ? "1 PDF" : "\(count) PDFs"
+            }
+        }
+    }
+
+    var kindSummaries: [KindSummary] {
+        kindsPresent.compactMap { kind in
+            let count = entries(of: kind).filter(\.isReady).count
+            return count == 0 ? nil : KindSummary(kind: kind, count: count, target: targetLabel(for: kind))
+        }
+    }
+
+    func targetLabel(for kind: MediaKind) -> String {
+        let current = settings(for: kind)
+        var label: String = switch current.target {
+        case .original: kind == .pdf ? "smaller PDF" : "smaller, same format"
+        case .auto: "Auto"
+        case .pdfCombined: "one PDF"
+        case .mp4H264, .movH264: current.target.displayName
+        case let target where target.isVideoTarget: "\(target.displayName) \(target.detail)"
+        case .gifAnimated: "animated GIF"
+        case .webpAnimated: "animated WebP"
+        case .frameJPEG, .framePNG: "\(current.target.displayName) frame"
+        case let target: target.displayName
+        }
+        // With a destination the limit is implied ("Fit for Discord").
+        if activeDestination == nil, let limit = sizeLimit(for: kind) { label += " ≤ \(Formatters.bytes(limit))" }
+        return label
     }
 
     /// Keeps each group's target valid for its current files.
@@ -340,7 +410,7 @@ final class AppModel {
                 case .success(let estimate):
                     entry.refinedEstimate = estimate
                 case .failure(let error) where !(error is CancellationError):
-                    entry.estimateError = error.localizedDescription
+                    entry.estimateError = FriendlyErrors.explain(error).message
                 default:
                     break
                 }
@@ -377,11 +447,7 @@ final class AppModel {
                 count += ready.isEmpty ? 0 : 1
             } else {
                 for entry in ready {
-                    if let pdf = entry.item.info?.pdf {
-                        count += current.image.pdfPages.pages(count: pdf.pageCount).count
-                    } else {
-                        count += 1
-                    }
+                    count += outputCount(for: entry, settings: current)
                 }
             }
         }
@@ -556,51 +622,78 @@ final class AppModel {
         NSWorkspace.shared.activateFileViewerSelecting(outputs)
     }
 
-    // MARK: - Quick actions (menu bar)
+    // MARK: - Quick actions (menu bar, Finder, Shortcuts)
 
-    func runQuickAction(_ action: QuickAction, urls: [URL]) {
+    func runQuickAction(_ action: QuickAction, urls: [URL], forceNextToOriginals: Bool = false) {
         Task {
-            let scanned = await Task.detached(priority: .userInitiated) { FileScanner.scan(urls) }.value
-            let list = scanned.items.map(FileEntry.init)
-            guard !list.isEmpty else {
-                show(toast: "Nothing Morph can convert was dropped")
-                return
+            do {
+                _ = try await convertInBackground(urls: urls, title: action.title, forceNextToOriginals: forceNextToOriginals) {
+                    action.settings(for: $0, base: self.settings(for: $0))
+                }
+            } catch let error as BackgroundConversionError {
+                show(toast: error.message)
+            } catch {
+                show(toast: FriendlyErrors.explain(error).message)
             }
-            await setupTask?.value
-            await probe(quick: list)
-            let settingsFor: (MediaKind) -> ConversionSettings? = { kind in
-                action.settings(for: kind, base: self.settings(for: kind))
+        }
+    }
+
+    struct BackgroundConversionError: LocalizedError {
+        let message: String
+        var errorDescription: String? { message }
+    }
+
+    /// Converts files outside the main window (menu bar, Finder Quick Actions, Shortcuts) and waits for
+    /// the result. Progress shows in the menu bar. Returns the converted files.
+    func convertInBackground(urls: [URL], title: String, forceNextToOriginals: Bool = false,
+                             settingsFor: @escaping (MediaKind) -> ConversionSettings?) async throws -> [URL] {
+        let scanned = await Task.detached(priority: .userInitiated) { FileScanner.scan(urls) }.value
+        let list = scanned.items.map(FileEntry.init)
+        guard !list.isEmpty else {
+            throw BackgroundConversionError(message: "Nothing Morph can convert was found")
+        }
+        await setupTask?.value
+        await probe(quick: list)
+        let applicable = list.filter { $0.isReady && settingsFor($0.kind) != nil }
+        guard !applicable.isEmpty else {
+            if let failure = list.compactMap(\.failureMessage).first {
+                throw BackgroundConversionError(message: failure)
             }
-            let applicable = list.filter { $0.isReady && settingsFor($0.kind) != nil }
-            guard !applicable.isEmpty else {
-                show(toast: "“\(action.title)” doesn't apply to those files")
-                return
-            }
-            let destination: DestinationChoice
-            if settings.quickActionsSaveNextToOriginals {
-                destination = .nextToOriginals
-            } else {
-                guard let choice = await chooseDestination(
-                    for: applicable, settingsFor: { settingsFor($0) ?? self.settings(for: $0) }, window: nil)
-                else { return }
-                destination = choice
-            }
-            let jobs = planJobs(for: applicable, settingsFor: settingsFor, destination: destination)
-            let runner = BatchRunner(title: "\(action.title) · \(applicable.count) file\(applicable.count == 1 ? "" : "s")",
-                                     jobs: jobs, pipeline: pipeline(for: destination),
-                                     maxParallel: settings.maxParallel > 0 ? settings.maxParallel : nil)
-            // AppModel is an app-lifetime singleton, so capturing it strongly is fine.
-            runner.onOutput = { url, bytes, original in self.addRecent(url: url, bytes: bytes, original: original) }
+            throw BackgroundConversionError(message: "“\(title)” doesn't apply to those files")
+        }
+        let destination: DestinationChoice
+        if forceNextToOriginals || settings.quickActionsSaveNextToOriginals {
+            destination = .nextToOriginals
+        } else {
+            guard let choice = await chooseDestination(
+                for: applicable, settingsFor: { settingsFor($0) ?? self.settings(for: $0) }, window: nil)
+            else { return [] }
+            destination = choice
+        }
+        let jobs = planJobs(for: applicable, settingsFor: settingsFor, destination: destination)
+        let runner = BatchRunner(title: "\(title) · \(applicable.count) file\(applicable.count == 1 ? "" : "s")",
+                                 jobs: jobs, pipeline: pipeline(for: destination),
+                                 maxParallel: settings.maxParallel > 0 ? settings.maxParallel : nil)
+        // AppModel is an app-lifetime singleton, so capturing it strongly is fine.
+        runner.onOutput = { url, bytes, original in self.addRecent(url: url, bytes: bytes, original: original) }
+        quickBatches.append(runner)
+        let summary = await withCheckedContinuation { (continuation: CheckedContinuation<BatchSummary, Never>) in
             runner.onFinish = { [weak runner] summary in
                 if self.settings.notifyWhenDone { SystemFeedback.notifyFinished(summary) }
                 Task { @MainActor in
                     try? await Task.sleep(for: .seconds(8))
                     self.quickBatches.removeAll { $0 === runner }
                 }
+                continuation.resume(returning: summary)
             }
-            quickBatches.append(runner)
             runner.start()
         }
+        if summary.converted == 0, let failure = runner.entries.lazy.compactMap({ entry -> String? in
+            if case .failed(let message, _, _) = entry.job { message } else { nil }
+        }).first {
+            throw BackgroundConversionError(message: failure)
+        }
+        return summary.outputs
     }
 
     private func probe(quick list: [FileEntry]) async {
@@ -615,7 +708,7 @@ final class AppModel {
                 entry.item.info = info
                 entry.probe = .ready
             case .failure(let error):
-                entry.probe = .failed(error.localizedDescription)
+                entry.probe = .failed(FriendlyErrors.explain(error).message)
             }
         }
     }

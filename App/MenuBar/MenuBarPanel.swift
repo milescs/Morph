@@ -15,12 +15,14 @@ struct MenuBarPanel: View {
     @Environment(SettingsStore.self) private var settings
     @State private var openTargeted = false
     @State private var targetedAction: QuickAction?
+    @State private var targetedDestination: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
             dropZone
             quickActions
+            destinations
             if !model.quickBatches.isEmpty || model.phase == .converting {
                 activity
             }
@@ -95,7 +97,7 @@ struct MenuBarPanel: View {
             GlassEffectContainer(spacing: 8) {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8),
                                     GridItem(.flexible(), spacing: 8)], spacing: 8) {
-                    ForEach(settings.quickActions) { action in
+                    ForEach(settings.quickActions.filter { $0.isAvailable && $0.destination == nil }) { action in
                         QuickActionTile(action: action, isTargeted: targetedAction == action)
                             .onTapGesture { choose(for: action) }
                             .dropDestination(for: URL.self) { urls, _ in
@@ -112,6 +114,37 @@ struct MenuBarPanel: View {
                  ? "Saved next to the originals." : "You'll choose where to save.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    /// "Fit for" chips: drop files on Email, Discord … to get the right format and size for it.
+    @ViewBuilder
+    private var destinations: some View {
+        let shown = DestinationStore.shared.destinations.filter { !settings.hiddenMenuBarDestinations.contains($0.id) }
+        if !shown.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("FIT FOR").font(.caption2.weight(.semibold)).foregroundStyle(.secondary).tracking(0.6)
+                FlowLayout(spacing: 6, alignment: .leading) {
+                    ForEach(shown) { destination in
+                        DestinationChip(destination: destination, isSelected: targetedDestination == destination.id) {
+                            choose(for: .destination(destination.id))
+                        }
+                        .dropDestination(for: URL.self) { urls, _ in
+                            close()
+                            model.runQuickAction(.destination(destination.id), urls: urls)
+                            return true
+                        } isTargeted: { targeted in
+                            if targeted {
+                                targetedDestination = destination.id
+                            } else if targetedDestination == destination.id {
+                                targetedDestination = nil
+                            }
+                        }
+                        .scaleEffect(targetedDestination == destination.id ? 1.06 : 1)
+                        .animation(.spring(duration: 0.25, bounce: 0.4), value: targetedDestination)
+                    }
+                }
+            }
         }
     }
 

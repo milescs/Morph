@@ -2,12 +2,29 @@ import Foundation
 
 /// Which outputs make sense for a group of inputs, given what this Mac's FFmpeg supports.
 public enum FormatRegistry {
+    /// The target new users start with, and the one shown first as "Recommended".
     public static func defaultTarget(for kind: MediaKind) -> OutputFormat {
         switch kind {
-        case .image: .jpeg
+        case .image: .auto
         case .video: .mp4H264
         case .audio: .mp3
-        case .pdf: .png
+        case .pdf: .original
+        }
+    }
+
+    /// The recommended tile for a group, if it's available for these files.
+    public static func recommendedTarget(for kind: MediaKind, available: [OutputFormat]) -> OutputFormat? {
+        let preferred = defaultTarget(for: kind)
+        return available.contains(preferred) ? preferred : nil
+    }
+
+    /// One line explaining the recommended tile.
+    public static func recommendationReason(for kind: MediaKind) -> String {
+        switch kind {
+        case .image: "JPEG for photos, PNG for graphics and transparency, GIF for animations."
+        case .video: "MP4 with H.264 plays on every phone, computer and website."
+        case .audio: "MP3 plays everywhere."
+        case .pdf: "Shrinks the images inside. Text, links and forms stay as they are."
         }
     }
 
@@ -21,6 +38,7 @@ public enum FormatRegistry {
         case .image:
             var list: [OutputFormat] = []
             let canKeep = items.contains { ImageEngine.outputFormat(for: .original, source: $0.format) != nil }
+            list.append(.auto)
             if canKeep { list.append(.original) }
             list += [.jpeg, .png, .heic, .avif, .webp, .tiff, .gif, .bmp, .jp2, .ico, .icns, .pdf]
             if items.count > 1 { list.append(.pdfCombined) }
@@ -37,7 +55,7 @@ public enum FormatRegistry {
             return list
 
         case .pdf:
-            var list: [OutputFormat] = [.png, .jpeg, .heic, .webp, .avif, .tiff]
+            var list: [OutputFormat] = [.original, .png, .jpeg, .heic, .webp, .avif, .tiff]
             if items.count > 1 { list.append(.pdfCombined) }
             return list
 
@@ -75,8 +93,15 @@ public enum FormatRegistry {
         switch ConversionPipeline.route(for: item, target: settings.target) {
         case .combinePDF:
             return "pdf"
+        case .pdfCompress:
+            return item.url.pathExtension.isEmpty ? "pdf" : item.url.pathExtension
         case .image:
             if settings.target == .original { return item.url.pathExtension.isEmpty ? item.format.preferredExtension : item.url.pathExtension }
+            if settings.target == .auto {
+                let format = ImageEngine.autoFormat(for: item)
+                if format == item.format && !item.url.pathExtension.isEmpty { return item.url.pathExtension }
+                return format.preferredExtension
+            }
             return settings.target.fileExtension
         case .ffmpeg:
             if let info = item.info?.media,

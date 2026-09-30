@@ -98,6 +98,13 @@ public struct SizeEstimator: Sendable {
                 to: CGSizeInt(width: info.width, height: info.height),
                 allowUpscale: settings.image.allowUpscale).pixels,
                 frames: settings.image.keepAnimation ? info.frameCount : 1, item: item, settings: settings)
+        case .pdf(let info)? where settings.target == .original:
+            // Compressing: most of a PDF's bytes are usually its images.
+            let ratio = 0.25 + 0.5 * settings.image.quality
+            var bytes = Double(item.fileSize) * ratio
+            if let limit = settings.image.sizeLimit { bytes = min(bytes, Double(limit)) }
+            _ = info
+            return SizeEstimate(bytes: Int64(max(1_000, bytes)), isExact: false)
         case .pdf(let info)?:
             let pages = Double(settings.target == .pdfCombined ? info.pageCount
                 : settings.image.pdfPages.pages(count: info.pageCount).count)
@@ -115,7 +122,7 @@ public struct SizeEstimator: Sendable {
 
     static func quickImage(pixels: Int, frames: Int, item: MediaItem, settings: ConversionSettings) -> SizeEstimate? {
         let format: FileFormat? = settings.target == .pdfCombined ? .pdf
-            : ImageEngine.outputFormat(for: settings.target, source: item.format)
+            : ImageEngine.outputFormat(for: settings.target, item: item)
         guard let format else { return nil }
         let q = settings.image.quality
         let jpegBPP = 0.04 + 0.6 * pow(q, 2.2)
@@ -250,6 +257,16 @@ public struct SizeEstimator: Sendable {
             let result = SizeEstimate(bytes: bytes, isExact: false)
             await cache.store(result, for: key)
             return result
+        }
+        if ConversionPipeline.route(for: item, target: settings.target) == .pdfCompress {
+            let url = item.url, options = settings.image
+            let result = try await BlockingWork.run(qos: .userInitiated) {
+                try PDFCompressor.compress(url: url, options: options)
+            }
+            await cache.store(result, for: key)
+            let exact = SizeEstimate(bytes: result.byteCount, isExact: true, note: result.note)
+            await cache.store(exact, for: key)
+            return exact
         }
         switch item.kind {
         case .image, .pdf:

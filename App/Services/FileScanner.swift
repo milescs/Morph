@@ -34,8 +34,10 @@ nonisolated enum FileScanner {
             guard let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: keys,
                                                  options: [.skipsHiddenFiles, .skipsPackageDescendants]) else { continue }
             let folderItems: [URL] = enumerator.compactMap { element in
+                // Symlinked files count too (symlinked folders aren't followed, so there are no loops).
                 guard let file = element as? URL,
-                      (try? file.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true else { return nil }
+                      (try? file.resolvingSymlinksInPath().resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true
+                else { return nil }
                 return file
             }
             // Natural order ("IMG_2" before "IMG_10") within folders.

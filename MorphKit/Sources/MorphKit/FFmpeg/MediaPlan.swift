@@ -57,6 +57,10 @@ public struct MediaPlan: Sendable, Hashable {
     public var duration: Double             // output duration (after trim)
     public var frameTime: Double
     public var stripMetadata: Bool
+    /// Decode with VideoToolbox (turned off when the hardware decoder rejects a stream).
+    public var hardwareDecode = true
+    /// Drop GPS location tags while keeping other metadata.
+    public var removeLocation: Bool
     public var fastStart: Bool
     public var customArguments: [String]
 
@@ -89,7 +93,7 @@ public enum MediaPlanner {
             flipVertical: v.flipVertical, animationFPS: nil, animationWidth: nil, gifColors: nil, gifDither: nil,
             webpQuality: nil, audioEncoder: nil, audioBitrate: nil, mp3VBRQuality: nil, audioSampleRate: nil,
             audioChannels: nil, normalizeLoudness: false, keepCoverArt: false, trim: nil, duration: info.duration,
-            frameTime: 0, stripMetadata: v.stripMetadata, fastStart: v.fastStart,
+            frameTime: 0, stripMetadata: v.stripMetadata, removeLocation: v.removeLocation, fastStart: v.fastStart,
             customArguments: ShellWords.split(v.customArguments), videoStreamIndex: video?.index,
             audioStreamIndex: info.audio?.index, coverArtIncluded: false)
 
@@ -366,6 +370,9 @@ public enum MediaPlanner {
         plan.audioEncoder = encoder
         plan.audioStreamIndex = audio.index
         plan.audioSampleRate = v.audio.sampleRate
+        if plan.audioSampleRate == nil && [.aac, .automatic].contains(encoder) && audio.sampleRate > 48_000 {
+            plan.audioSampleRate = 48_000
+        }
         plan.audioChannels = v.audio.channels == .mono ? 1 : v.audio.channels == .stereo ? 2 : (audio.channels > 2 ? 2 : nil)
         if !encoder.isLossless && encoder != .copy {
             plan.audioBitrate = plannedAudioBitrate(info: info, options: v)
@@ -384,10 +391,15 @@ public enum MediaPlanner {
         plan.audioStreamIndex = audio.index
         plan.audioSampleRate = a.sampleRate
         plan.audioChannels = a.channels == .mono ? 1 : a.channels == .stereo ? 2 : nil
+        // MP3 can only hold mono or stereo: downmix surround sources.
+        if plan.audioChannels == nil && encoder == .mp3 && audio.channels > 2 { plan.audioChannels = 2 }
+        // Apple's AAC encoder stops at 48 kHz (hi-res sources are 88.2–192 kHz).
+        if plan.audioSampleRate == nil && encoder == .aac && audio.sampleRate > 48_000 { plan.audioSampleRate = 48_000 }
         plan.normalizeLoudness = a.normalizeLoudness
         plan.trim = a.trim
         plan.duration = a.trim?.duration(of: info.duration) ?? info.duration
         plan.stripMetadata = a.stripMetadata
+        plan.removeLocation = a.removeLocation
         plan.customArguments = ShellWords.split(a.customArguments)
         plan.fastStart = container == "ipod"
         plan.keepCoverArt = a.keepCoverArt && info.hasCoverArt && ["mp3", "ipod", "flac"].contains(container)

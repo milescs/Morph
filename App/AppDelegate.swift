@@ -6,6 +6,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let settings = SettingsStore.shared
     private var statusItem: StatusItemController?
     private var launchedWithFiles = false
+    /// Set when Shortcuts or a Finder Quick Action launched Morph to do work in the background.
+    private static var handlingBackgroundRequest = false
+
+    /// Keeps the converter window from popping up when Morph was launched just to run an action.
+    static func noteBackgroundRequest() {
+        handlingBackgroundRequest = true
+    }
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(settings.showInDock ? .regular : .accessory)
@@ -16,15 +23,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSUpdateDynamicServices()
         settings.onPresenceChange = { [weak self] in self?.applyPresence() }
         applyPresence()
-        // Show the converter unless we were launched just to handle files (they show it) or as a menu bar app.
+        _ = Updater.shared
+        DestinationStore.shared.refreshIfNeeded()
+        // Show the converter unless we were launched to handle files (they show it), to run a Shortcut
+        // or Finder Quick Action in the background, or as a menu bar app. Those requests arrive just
+        // after launch, so wait a moment before deciding.
         if !launchedWithFiles && settings.showInDock {
-            MainWindowController.shared.show()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+                guard let self, !self.launchedWithFiles, !Self.handlingBackgroundRequest else { return }
+                MainWindowController.shared.show()
+            }
         }
     }
 
+    func applicationDidBecomeActive(_ notification: Notification) {
+        DestinationStore.shared.refreshIfNeeded()
+    }
+
     func application(_ application: NSApplication, open urls: [URL]) {
+        let requests = urls.filter { $0.scheme == "morph" }
+        for url in requests { ExtensionRequests.handle(url) }
+        let files = urls.filter(\.isFileURL)
+        guard !files.isEmpty else { return }
         launchedWithFiles = true
-        model.add(urls: urls)
+        model.add(urls: files)
         MainWindowController.shared.show()
     }
 
@@ -80,7 +102,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !urls.isEmpty else { return }
         model.add(urls: urls)
         for kind in MediaKind.allCases {
-            model.update(kind) { $0.target = kind == .pdf ? $0.target : .original }
+            model.update(kind) { $0.target = .original }
         }
         MainWindowController.shared.show()
     }

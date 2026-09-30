@@ -54,7 +54,7 @@ struct FileRow: View {
                     Text("· \(note)").foregroundStyle(.orange)
                 } else if let note = entry.estimate?.note {
                     Text("· \(note)").foregroundStyle(.orange)
-                } else if case .failed(let message, _) = entry.job {
+                } else if case .failed(let message, _, _) = entry.job {
                     Text("· \(message)").foregroundStyle(.red)
                 }
             }
@@ -71,8 +71,20 @@ struct FileRow: View {
             if entry.probe == .pending {
                 ProgressView().controlSize(.small)
             } else if entry.isFailed {
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
-                    .help(entry.failureMessage ?? "")
+                Button {
+                    showLog = true
+                } label: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
+                }
+                .buttonStyle(.plain)
+                .help(entry.failureMessage ?? "")
+                .popover(isPresented: $showLog) {
+                    FailureDetails(context: .init(item: entry.item, settings: nil,
+                                                  message: entry.failureMessage ?? "This file can't be read.",
+                                                  suggestion: FriendlyErrors.explain(
+                                                      ProbeError.unreadable(entry.failureMessage ?? "")).suggestion,
+                                                  log: nil))
+                }
             } else if hovering && model.phase != .converting {
                 Button {
                     model.remove([entry.id])
@@ -101,7 +113,7 @@ struct FileRow: View {
             }
             .buttonStyle(.plain)
             .help(url.map { "Show \($0.lastPathComponent) in Finder" } ?? "Skipped")
-        case .failed(let message, let log):
+        case .failed(let message, let suggestion, let log):
             Button {
                 showLog = true
             } label: {
@@ -110,7 +122,8 @@ struct FileRow: View {
             .buttonStyle(.plain)
             .help(message)
             .popover(isPresented: $showLog) {
-                FailureDetails(message: message, log: log)
+                FailureDetails(context: .init(item: entry.item, settings: model.settings(for: entry.kind),
+                                              message: message, suggestion: suggestion, log: log))
             }
         case .cancelled:
             Image(systemName: "stop.circle").foregroundStyle(.secondary).help("Stopped")
@@ -234,31 +247,55 @@ struct ThumbnailView: View {
     }
 }
 
+/// What went wrong, what to try, and a way to report it.
 struct FailureDetails: View {
-    let message: String
-    let log: String?
+    let context: ProblemReport.Context
+    @State private var showLog = false
+    @State private var copied = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label(message, systemImage: "xmark.octagon.fill")
-                .font(.headline)
-                .foregroundStyle(.red)
-            if let log, !log.isEmpty {
-                ScrollView {
-                    Text(log)
-                        .font(.system(.caption, design: .monospaced))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .frame(width: 460, height: 180)
-                .padding(8)
-                .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 8))
-                Button("Copy Log") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(log, forType: .string)
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            Label {
+                Text(context.message)
+                    .font(.headline)
+                    .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: "xmark.octagon.fill").foregroundStyle(.red)
             }
+            if let suggestion = context.suggestion {
+                Text(suggestion)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let log = context.log, !log.isEmpty {
+                DisclosureGroup("Technical details", isExpanded: $showLog) {
+                    ScrollView {
+                        Text(log)
+                            .font(.system(.caption, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(height: 160)
+                    .padding(8)
+                    .background(.quaternary.opacity(0.5), in: .rect(cornerRadius: 8))
+                }
+                .font(.callout)
+            }
+            HStack {
+                Button(copied ? "Copied" : "Copy Diagnostics") {
+                    ProblemReport.copy(context)
+                    copied = true
+                }
+                .help("Copies a description of the file and settings, without its name or location")
+                Spacer()
+                Button("Report a Problem…") { ProblemReport.open(context) }
+                    .buttonStyle(.glassProminent)
+                    .help("Opens a pre-filled GitHub issue. You can review everything before sending it.")
+            }
+            .controlSize(.small)
         }
         .padding(16)
+        .frame(width: 440)
     }
 }

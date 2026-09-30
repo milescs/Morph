@@ -12,7 +12,7 @@ let package = Package(
         .package(url: "https://github.com/SDWebImage/libwebp-Xcode", from: "1.6.0"),
     ],
     targets: [
-        // resvg + vtracer + oxipng + imagequant, built by scripts/build-rust.sh.
+        // resvg + vtracer + oxipng + quantizr, built by scripts/build-rust.sh.
         .binaryTarget(name: "MorphRust", path: "Binaries/MorphRust.xcframework"),
         .target(
             name: "MorphKit",

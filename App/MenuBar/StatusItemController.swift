@@ -168,6 +168,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
             menu.addItem(.separator())
         }
         menu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",").target = self
+        menu.addItem(withTitle: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Quit Morph", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
@@ -177,6 +178,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     @objc private func openMain() { MainWindowController.shared.show() }
     @objc private func addFiles() { MainWindowController.shared.chooseFiles() }
     @objc private func openSettings() { SettingsWindowController.shared.show() }
+    @objc private func checkForUpdates() { Updater.shared.checkForUpdates() }
     @objc private func revealRecent(_ sender: NSMenuItem) {
         if let url = sender.representedObject as? URL { NSWorkspace.shared.activateFileViewerSelecting([url]) }
     }

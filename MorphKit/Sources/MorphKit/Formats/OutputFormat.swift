@@ -37,11 +37,49 @@ public enum FormatBadge: String, Codable, Sendable, Hashable {
     }
 }
 
+/// Who can open a file in a given format without installing anything.
+public enum Compatibility: String, Codable, Sendable, CaseIterable {
+    case everywhere, modern, apple, editing, limited
+
+    public var title: String {
+        switch self {
+        case .everywhere: "Opens everywhere"
+        case .modern: "Newer devices"
+        case .apple: "Best on Apple devices"
+        case .editing: "For editing apps"
+        case .limited: "Few apps"
+        }
+    }
+
+    public var explanation: String {
+        switch self {
+        case .everywhere: "Opens on any computer, phone and website."
+        case .modern: "Works in current browsers and recent devices. Some older apps can't open it."
+        case .apple: "Plays everywhere on Apple devices. Windows and Android may need an extra app."
+        case .editing: "Made for editing and print apps. Files are large."
+        case .limited: "Only some apps can open it."
+        }
+    }
+
+    public var symbolName: String {
+        switch self {
+        case .everywhere: "checkmark.seal.fill"
+        case .modern: "sparkles"
+        case .apple: "apple.logo"
+        case .editing: "slider.horizontal.below.rectangle"
+        case .limited: "exclamationmark.circle"
+        }
+    }
+}
+
 /// A conversion target the user can pick ("tile"). Video/audio targets imply sensible
 /// container + codec defaults; Pro options may override the codec afterwards.
 public enum OutputFormat: String, Codable, Sendable, CaseIterable, Identifiable, Hashable {
     /// Same format as the input — compress only.
     case original
+    /// Images: the most compatible format for each file (JPEG for photos, PNG for graphics
+    /// with transparency, GIF for animations). JPEG, PNG and GIF files keep their format.
+    case auto
 
     // Still images
     case jpeg, png, heic, avif, webp, tiff, gif, bmp, jp2, ico, icns
@@ -63,7 +101,7 @@ public enum OutputFormat: String, Codable, Sendable, CaseIterable, Identifiable,
     public var category: OutputCategory {
         switch self {
         case .original: .original
-        case .jpeg, .png, .heic, .avif, .webp, .tiff, .gif, .bmp, .jp2, .ico, .icns: .image
+        case .auto, .jpeg, .png, .heic, .avif, .webp, .tiff, .gif, .bmp, .jp2, .ico, .icns: .image
         case .pdf, .pdfCombined: .document
         case .svgTrace: .vector
         case .gifAnimated, .webpAnimated: .animated
@@ -76,6 +114,7 @@ public enum OutputFormat: String, Codable, Sendable, CaseIterable, Identifiable,
     public var displayName: String {
         switch self {
         case .original: "Original"
+        case .auto: "Auto"
         case .jpeg, .frameJPEG: "JPEG"
         case .png, .framePNG: "PNG"
         case .heic: "HEIC"
@@ -107,6 +146,7 @@ public enum OutputFormat: String, Codable, Sendable, CaseIterable, Identifiable,
     public var detail: String {
         switch self {
         case .original: "Compress only"
+        case .auto: "JPEG · PNG · GIF"
         case .jpeg: "Photos"
         case .png: "Lossless"
         case .heic: "Apple photos"
@@ -141,7 +181,7 @@ public enum OutputFormat: String, Codable, Sendable, CaseIterable, Identifiable,
 
     public var badges: [FormatBadge] {
         switch self {
-        case .jpeg, .mp4H264, .mp3: [.compatible]
+        case .auto, .jpeg, .mp4H264, .mp3: [.compatible]
         case .png: [.lossless, .transparency]
         case .heic: [.smallest, .hdr]
         case .avif: [.smallest, .transparency]
@@ -159,10 +199,10 @@ public enum OutputFormat: String, Codable, Sendable, CaseIterable, Identifiable,
         }
     }
 
-    /// Extension of the file produced (for `.original` the caller substitutes the input's).
+    /// Extension of the file produced (for `.original` and `.auto` it depends on the input).
     public var fileExtension: String {
         switch self {
-        case .original: ""
+        case .original, .auto: ""
         case .jpeg, .frameJPEG: "jpg"
         case .png, .framePNG: "png"
         case .heic: "heic"
@@ -227,6 +267,19 @@ public enum OutputFormat: String, Codable, Sendable, CaseIterable, Identifiable,
         case .ico, .icns: "Icons include several sizes of the image."
         case .svgTrace: "Use Pro mode to tune colors and detail."
         default: nil
+        }
+    }
+
+    /// Who can open the result. nil when it depends on the input (`.original`) or doesn't apply (icons).
+    public var compatibility: Compatibility? {
+        switch self {
+        case .original, .ico, .icns: nil
+        case .auto, .jpeg, .png, .gif, .bmp, .pdf, .pdfCombined, .svgTrace, .gifAnimated, .mp4H264, .mp3, .m4aAAC,
+             .wav, .frameJPEG, .framePNG: .everywhere
+        case .webp, .avif, .webpAnimated, .mp4HEVC, .mp4AV1, .webmVP9, .webmAV1, .flac, .opus: .modern
+        case .heic, .movH264, .movHEVC, .m4aALAC, .aiff: .apple
+        case .tiff, .movProRes: .editing
+        case .jp2, .mkvHEVC: .limited
         }
     }
 

@@ -45,6 +45,12 @@ final class SettingsStore {
     var quickActionsSaveNextToOriginals: Bool {
         didSet { defaults.set(quickActionsSaveNextToOriginals, forKey: "quickActionsSaveNextToOriginals") }
     }
+    /// Destination chips hidden from the menu bar's "Fit for" row (all are shown by default).
+    var hiddenMenuBarDestinations: [String] {
+        didSet { defaults.set(hiddenMenuBarDestinations, forKey: "hiddenMenuBarDestinations") }
+    }
+    /// Refresh destination upload limits from GitHub (a small JSON file, at most daily).
+    var updateDestinations: Bool { didSet { defaults.set(updateDestinations, forKey: "updateDestinations") } }
 
     var launchAtLogin: Bool {
         get { SMAppService.mainApp.status == .enabled }
@@ -64,6 +70,7 @@ final class SettingsStore {
             "collisionPolicy": CollisionPolicy.keepBoth.rawValue, "preserveFileDates": false, "maxParallel": 0,
             "notifyWhenDone": true, "revealWhenDone": false, "proMode": false,
             "quickActions": QuickAction.defaults.map(\.rawValue), "quickActionsSaveNextToOriginals": false,
+            "updateDestinations": true,
         ])
         showInDock = defaults.bool(forKey: "showInDock")
         showInMenuBar = defaults.bool(forKey: "showInMenuBar")
@@ -78,6 +85,25 @@ final class SettingsStore {
         proMode = defaults.bool(forKey: "proMode")
         quickActions = (defaults.stringArray(forKey: "quickActions") ?? []).compactMap(QuickAction.init(rawValue:))
         quickActionsSaveNextToOriginals = defaults.bool(forKey: "quickActionsSaveNextToOriginals")
+        updateDestinations = defaults.bool(forKey: "updateDestinations")
+        hiddenMenuBarDestinations = defaults.stringArray(forKey: "hiddenMenuBarDestinations") ?? []
+        migrate()
+    }
+
+    /// One-time updates to settings saved by older versions.
+    private func migrate() {
+        let version = defaults.integer(forKey: "settingsVersion")
+        if version < 2 {
+            // 1.1: photos lose their location by default ("private by default").
+            for kind in MediaKind.allCases where defaults.data(forKey: "settings.\(kind.rawValue)") != nil {
+                var settings = conversionSettings(for: kind)
+                if settings.image.metadata == .keep { settings.image.metadata = .removeLocation }
+                settings.video.removeLocation = true
+                settings.audio.removeLocation = true
+                remember(settings, for: kind)
+            }
+        }
+        defaults.set(2, forKey: "settingsVersion")
     }
 
     // MARK: Remembered conversion settings

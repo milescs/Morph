@@ -115,6 +115,11 @@ struct QualitySection: View {
 
     private func hint(current: ConversionSettings, target: OutputFormat) -> String? {
         let q = model.quality(for: kind)
+        if kind == .pdf && current.target == .original {
+            var (jpeg, dpi) = PDFCompressor.parameters(quality: q)
+            if let fixed = current.image.pdfImageDPI { dpi = fixed }
+            return "Images inside are saved at \(dpi) dpi, JPEG quality \(Int((jpeg * 100).rounded())). Text and drawings stay sharp."
+        }
         switch target {
         case .png:
             return q >= 0.98 ? "Lossless, with maximum compression." : "Fewer colors for a much smaller file (lossy palette)."

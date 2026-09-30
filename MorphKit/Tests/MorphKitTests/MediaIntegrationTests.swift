@@ -148,7 +148,7 @@ struct MediaIntegrationTests {
                 #expect(outcome.output != nil)
                 #expect(outcome.bytes > 0)
                 finished += 1
-            case .failed(_, let message, _):
+            case .failed(_, let message, _, _):
                 Issue.record("job failed: \(message)")
                 finished += 1
             default: break

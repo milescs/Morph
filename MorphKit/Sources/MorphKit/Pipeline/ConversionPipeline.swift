@@ -18,7 +18,7 @@ public struct ConversionPipeline: Sendable {
     public typealias Progress = @Sendable (_ fraction: Double, _ remaining: Double?) -> Void
 
     public enum Route: Sendable, Equatable {
-        case image, combinePDF, ffmpeg
+        case image, combinePDF, pdfCompress, ffmpeg
     }
 
     public static func route(for item: MediaItem, target: OutputFormat) -> Route {
@@ -28,7 +28,7 @@ public struct ConversionPipeline: Sendable {
             // Animated images become videos/animations through FFmpeg.
             return target.isVideoTarget || target.isAnimatedTarget ? .ffmpeg : .image
         case .pdf:
-            return .image
+            return target == .original ? .pdfCompress : .image
         case .video, .audio:
             return .ffmpeg
         }
@@ -50,6 +50,21 @@ public struct ConversionPipeline: Sendable {
             }
             try Task.checkCancellation()
             finalURL = try AtomicWriter.write(data, to: job.destination, policy: collisionPolicy, protecting: originals)
+
+        case .pdfCompress:
+            let key = SizeEstimator.cacheKey(item: item, settings: job.settings)
+            let result: ImageEncodeResult
+            if let cached = await cache.image(for: key) {
+                result = cached
+            } else {
+                let url = item.url, options = job.settings.image
+                result = try await BlockingWork.run { try PDFCompressor.compress(url: url, options: options) }
+            }
+            note = result.note
+            try Task.checkCancellation()
+            progress(0.9, nil)
+            finalURL = try AtomicWriter.write(result.data, to: job.destination, policy: collisionPolicy,
+                                              protecting: originals)
 
         case .image:
             let key = SizeEstimator.cacheKey(item: item, settings: job.settings, page: job.page ?? 1)

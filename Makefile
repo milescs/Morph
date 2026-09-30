@@ -4,7 +4,7 @@ SCHEME = Morph
 DERIVED = build/DerivedData
 APP = $(DERIVED)/Build/Products/Debug/Morph.app
 
-.PHONY: bootstrap rust deps project build release run test test-kit clean
+.PHONY: bootstrap rust deps project build release run test test-kit corpus clean
 
 bootstrap: rust project
 	@command -v meson >/dev/null || brew install meson
@@ -33,6 +33,10 @@ test: test-kit
 
 test-kit:
 	cd MorphKit && swift test
+
+# Real-world media regression run (downloads ~300 MB of public samples on first use).
+corpus:
+	mkdir -p build && ./scripts/corpus.sh
 
 clean:
 	rm -rf build MorphKit/.build

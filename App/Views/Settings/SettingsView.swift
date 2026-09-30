@@ -10,7 +10,7 @@ struct SettingsView: View {
             Tab("Quick Actions", systemImage: "bolt") { QuickActionSettings() }
             Tab("About", systemImage: "info.circle") { AboutSettings() }
         }
-        .frame(width: 560, height: 470)
+        .frame(width: 600, height: 540)
     }
 }
 
@@ -33,8 +33,34 @@ private struct GeneralSettings: View {
             Section("Options") {
                 Toggle("Show Pro options", isOn: $settings.proMode)
             }
+            UpdatesSection()
         }
         .formStyle(.grouped)
+    }
+}
+
+private struct UpdatesSection: View {
+    @Environment(SettingsStore.self) private var settings
+    private let updater = Updater.shared
+
+    var body: some View {
+        @Bindable var settings = settings
+        @Bindable var updater = updater
+        Section {
+            Toggle("Check for updates automatically", isOn: $updater.automaticallyChecksForUpdates)
+            Toggle("Download and install updates automatically", isOn: $updater.automaticallyDownloadsUpdates)
+                .disabled(!updater.automaticallyChecksForUpdates)
+            Toggle("Keep destination upload limits up to date", isOn: $settings.updateDestinations)
+            HStack {
+                Spacer()
+                Button("Check Now") { updater.checkForUpdates() }
+                    .disabled(!updater.canCheckForUpdates)
+            }
+        } header: {
+            Text("Updates")
+        } footer: {
+            Text("Morph asks GitHub for new versions and upload limits. Nothing about you or your files is sent.")
+        }
     }
 }
 
@@ -108,33 +134,90 @@ private struct QuickActionSettings: View {
     var body: some View {
         Form {
             Section {
-                ForEach(QuickAction.allCases) { action in
+                ForEach(QuickAction.builtIns) { action in toggle(for: action, order: QuickAction.builtIns) }
+            } header: {
+                Text("Menu bar: convert")
+            } footer: {
+                Text("Drag files onto the Morph icon in the menu bar, then drop them on an action.")
+            }
+            Section {
+                ForEach(DestinationStore.shared.destinations) { destination in
                     Toggle(isOn: Binding(
-                        get: { settings.quickActions.contains(action) },
+                        get: { !settings.hiddenMenuBarDestinations.contains(destination.id) },
                         set: { on in
-                            if on {
-                                settings.quickActions = QuickAction.allCases.filter { settings.quickActions.contains($0) || $0 == action }
-                            } else if settings.quickActions.count > 1 {
-                                settings.quickActions.removeAll { $0 == action }
-                            }
+                            settings.hiddenMenuBarDestinations.removeAll { $0 == destination.id }
+                            if !on { settings.hiddenMenuBarDestinations.append(destination.id) }
                         })) {
                         Label {
                             VStack(alignment: .leading) {
-                                Text(action.title)
-                                Text(action.subtitle).font(.caption).foregroundStyle(.secondary)
+                                Text("\(destination.name) · \(destination.badge)")
+                                Text(destination.summary).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                             }
                         } icon: {
-                            Image(systemName: action.symbol)
+                            Image(systemName: destination.symbol)
                         }
                     }
                 }
             } header: {
-                Text("Menu bar actions")
+                Text("Menu bar: fit for")
             } footer: {
-                Text("Drag files onto the Morph icon in the menu bar, then drop them on an action.")
+                Text("Drop files on a destination to convert them to the format and size that work there.")
+            }
+            Section {
+                LabeledContent("Compress with Morph") {
+                    Text("Same format, smaller").foregroundStyle(.secondary)
+                }
+                LabeledContent("Convert with Morph") {
+                    Text("Opens the files in Morph").foregroundStyle(.secondary)
+                }
+                HStack {
+                    Spacer()
+                    Button("Extension Settings…") {
+                        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.ExtensionsPreferences")!)
+                    }
+                }
+            } header: {
+                Text("Finder")
+            } footer: {
+                Text("Select files in Finder, then Control-click › Quick Actions, or use the buttons in the Preview pane. Compressed files are saved next to the originals. If they're missing, turn them on in Extension Settings › Finder.")
+            }
+            Section {
+                Text("Morph adds Convert Files, Compress Files and Make Files Fit to the Shortcuts app and Spotlight. With a Shortcuts automation such as “When a file is added to Downloads”, any folder can compress new files by itself.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                HStack {
+                    Spacer()
+                    Button("Open Shortcuts") { NSWorkspace.shared.open(URL(string: "shortcuts://")!) }
+                }
+            } header: {
+                Text("Shortcuts and automations")
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func toggle(for action: QuickAction, order: [QuickAction]) -> some View {
+        Toggle(isOn: Binding(
+            get: { settings.quickActions.contains(action) },
+            set: { on in
+                if on {
+                    settings.quickActions = order.filter { settings.quickActions.contains($0) || $0 == action }
+                } else if settings.quickActions.count > 1 {
+                    settings.quickActions.removeAll { $0 == action }
+                }
+            })) {
+            Label {
+                VStack(alignment: .leading) {
+                    Text(action.title)
+                    Text(action.destination?.summary ?? action.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            } icon: {
+                Image(systemName: action.symbol)
+            }
+        }
     }
 }
 
@@ -156,6 +239,7 @@ private struct AboutSettings: View {
         ("vtracer", "MIT", "https://github.com/visioncortex/vtracer"),
         ("oxipng", "MIT", "https://github.com/oxipng/oxipng"),
         ("quantizr", "MIT", "https://github.com/DarthSim/quantizr"),
+        ("Sparkle", "MIT", "https://sparkle-project.org"),
         ("FFmpeg build script (Martin Riedl)", "Apache-2.0", "https://git.martin-riedl.de/ffmpeg/build-script"),
     ]
 
@@ -174,6 +258,12 @@ private struct AboutSettings: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                }
+                HStack {
+                    Button("Check for Updates…") { Updater.shared.checkForUpdates() }
+                    Spacer()
+                    Button("Report a Problem…") { ProblemReport.openGeneral() }
+                    Button("Suggest an Idea…") { ProblemReport.openFeatureRequest() }
                 }
                 LabeledContent("FFmpeg", value: model.capabilities.map { "\($0.version)\(model.tools?.isBundled == true ? " (bundled)" : " (development)")" } ?? "Not found")
                 LabeledContent("Image codecs", value: RustCodecs.version)

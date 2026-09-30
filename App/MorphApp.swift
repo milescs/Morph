@@ -14,9 +14,19 @@ struct MorphApp: App {
 
 struct MorphCommands: Commands {
     var body: some Commands {
+        CommandGroup(after: .appInfo) {
+            Button("Check for Updates…") { Updater.shared.checkForUpdates() }
+                .disabled(!Updater.shared.canCheckForUpdates)
+        }
         CommandGroup(replacing: .appSettings) {
             Button("Settings…") { SettingsWindowController.shared.show() }
                 .keyboardShortcut(",")
+        }
+        CommandGroup(replacing: .help) {
+            Button("Morph on GitHub") { NSWorkspace.shared.open(ProblemReport.repository) }
+            Divider()
+            Button("Report a Problem…") { ProblemReport.openGeneral() }
+            Button("Suggest an Idea…") { ProblemReport.openFeatureRequest() }
         }
         CommandGroup(replacing: .newItem) {
             Button("Add Files…") { MainWindowController.shared.chooseFiles() }

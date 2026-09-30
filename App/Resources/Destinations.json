@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "updated": "2026-09-30",
+  "destinations": [
+    {
+      "id": "email",
+      "name": "Email",
+      "symbol": "envelope.fill",
+      "badge": "20 MB",
+      "summary": "Keeps attachments well under the 20–25 MB most email services accept. Photos are resized to 2560 pixels.",
+      "rules": {
+        "image": { "target": "auto", "sizeLimitMB": 2, "maxLongSide": 2560 },
+        "video": { "target": "mp4H264", "sizeLimitMB": 20, "shortSide": 1080 },
+        "audio": { "target": "mp3", "sizeLimitMB": 20 },
+        "pdf": { "target": "original", "sizeLimitMB": 10 }
+      }
+    },
+    {
+      "id": "discord",
+      "name": "Discord",
+      "symbol": "bubble.left.and.bubble.right.fill",
+      "badge": "10 MB",
+      "summary": "Fits Discord's 10 MB upload limit for accounts without Nitro. Videos use H.264 so they play inline.",
+      "rules": {
+        "image": { "target": "auto", "sizeLimitMB": 10 },
+        "video": { "target": "mp4H264", "sizeLimitMB": 10, "shortSide": 1080 },
+        "audio": { "target": "mp3", "sizeLimitMB": 10 },
+        "pdf": { "target": "original", "sizeLimitMB": 10 }
+      }
+    },
+    {
+      "id": "whatsapp",
+      "name": "WhatsApp",
+      "symbol": "message.fill",
+      "badge": "16 MB",
+      "summary": "Fits WhatsApp's 16 MB limit for photos, videos and audio.",
+      "rules": {
+        "image": { "target": "auto", "sizeLimitMB": 16 },
+        "video": { "target": "mp4H264", "sizeLimitMB": 16, "shortSide": 1080 },
+        "audio": { "target": "mp3", "sizeLimitMB": 16 },
+        "pdf": { "target": "original" }
+      }
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "symbol": "chevron.left.forwardslash.chevron.right",
+      "badge": "10 MB",
+      "summary": "Fits GitHub issue and pull request uploads: 10 MB for images and videos (free plans), 25 MB for PDFs.",
+      "rules": {
+        "image": { "target": "auto", "sizeLimitMB": 10 },
+        "video": { "target": "mp4H264", "sizeLimitMB": 10, "shortSide": 1080 },
+        "pdf": { "target": "original", "sizeLimitMB": 25 }
+      }
+    },
+    {
+      "id": "x",
+      "name": "X",
+      "symbol": "text.bubble.fill",
+      "badge": "5 MB",
+      "summary": "Photos under X's 5 MB limit, and 1080p H.264 video.",
+      "rules": {
+        "image": { "target": "auto", "sizeLimitMB": 5, "maxLongSide": 4096 },
+        "video": { "target": "mp4H264", "sizeLimitMB": 512, "shortSide": 1080 }
+      }
+    },
+    {
+      "id": "form",
+      "name": "Upload form",
+      "symbol": "doc.text.fill",
+      "badge": "2 MB",
+      "summary": "For job applications and government portals, which often cap uploads at 2 MB.",
+      "rules": {
+        "image": { "target": "jpeg", "sizeLimitMB": 2, "maxLongSide": 3000 },
+        "video": { "target": "mp4H264", "sizeLimitMB": 10, "shortSide": 720 },
+        "audio": { "target": "mp3", "sizeLimitMB": 10 },
+        "pdf": { "target": "original", "sizeLimitMB": 2 }
+      }
+    },
+    {
+      "id": "website",
+      "name": "Website",
+      "symbol": "globe",
+      "badge": "Fast",
+      "summary": "Small WebP images and web-friendly 1080p MP4 video that load quickly.",
+      "rules": {
+        "image": { "target": "webp", "quality": 0.75, "maxLongSide": 2048 },
+        "video": { "target": "mp4H264", "quality": 0.5, "shortSide": 1080 },
+        "audio": { "target": "mp3", "quality": 0.5 },
+        "pdf": { "target": "original", "quality": 0.5 }
+      }
+    }
+  ]
+}

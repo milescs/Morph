@@ -109,10 +109,10 @@ final class BatchRunner: Identifiable {
                 onOutput?(url, outcome.bytes, source)
             }
             update(id) { $0.job = .done(url: outcome.output, bytes: outcome.bytes, note: outcome.note) }
-        case .failed(let id, let message, let log):
+        case .failed(let id, let message, let suggestion, let log):
             finish(id)
             failed += 1
-            update(id) { $0.job = .failed(message: message, log: log) }
+            update(id) { $0.job = .failed(message: message, suggestion: suggestion, log: log) }
         case .cancelled(let id):
             finish(id)
             cancelled += 1

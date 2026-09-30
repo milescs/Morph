@@ -32,6 +32,24 @@ public struct TraceOptions: Codable, Sendable, Hashable {
     public init() {}
 }
 
+extension TraceOptions {
+    public init(from decoder: any Decoder) throws {
+        self.init()
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        color = c.value(.color, or: color)
+        stacked = c.value(.stacked, or: stacked)
+        filterSpeckle = c.value(.filterSpeckle, or: filterSpeckle)
+        colorPrecision = c.value(.colorPrecision, or: colorPrecision)
+        layerDifference = c.value(.layerDifference, or: layerDifference)
+        mode = c.value(.mode, or: mode)
+        cornerThreshold = c.value(.cornerThreshold, or: cornerThreshold)
+        lengthThreshold = c.value(.lengthThreshold, or: lengthThreshold)
+        spliceThreshold = c.value(.spliceThreshold, or: spliceThreshold)
+        pathPrecision = c.value(.pathPrecision, or: pathPrecision)
+        maxSide = c.value(.maxSide, or: maxSide)
+    }
+}
+
 /// Swift wrappers around morph-rs (resvg, vtracer, oxipng, quantizr).
 public enum RustCodecs {
     public static var version: String { String(cString: morph_version()) }

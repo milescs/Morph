@@ -16,7 +16,7 @@ final class FileEntry: Identifiable {
         case queued
         case running(fraction: Double, remaining: Double?)
         case done(url: URL?, bytes: Int64, note: String?)
-        case failed(message: String, log: String?)
+        case failed(message: String, suggestion: String?, log: String?)
         case cancelled
 
         var isActive: Bool {

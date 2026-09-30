@@ -49,6 +49,10 @@ struct EmptyDropZone: View {
                         Text("Convert and compress images, videos, audio and PDFs.")
                             .font(.title3)
                             .foregroundStyle(.secondary)
+                        Label("Everything happens on your Mac. Nothing is uploaded.", systemImage: "lock.fill")
+                            .font(.callout)
+                            .foregroundStyle(.tertiary)
+                            .padding(.top, 2)
                     }
                     HStack(spacing: 12) {
                         Button {
@@ -119,9 +123,10 @@ struct FlowChips: View {
     }
 }
 
-/// Minimal flow layout (wraps subviews onto new lines, centered).
+/// Minimal flow layout (wraps subviews onto new lines, centered or leading-aligned).
 struct FlowLayout: Layout {
     var spacing: CGFloat = 6
+    var alignment: HorizontalAlignment = .center
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let rows = arrange(width: proposal.width ?? .infinity, subviews: subviews)
@@ -133,7 +138,7 @@ struct FlowLayout: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         var y = bounds.minY
         for row in arrange(width: bounds.width, subviews: subviews) {
-            var x = bounds.minX + (bounds.width - row.width) / 2
+            var x = alignment == .leading ? bounds.minX : bounds.minX + (bounds.width - row.width) / 2
             for index in row.indices {
                 let size = subviews[index].sizeThatFits(.unspecified)
                 subviews[index].place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))

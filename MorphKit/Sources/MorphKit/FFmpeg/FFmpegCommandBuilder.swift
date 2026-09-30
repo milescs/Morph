@@ -40,7 +40,7 @@ public enum FFmpegCommandBuilder {
 
     static func inputArguments(plan: MediaPlan, input: URL, hardwareDecode: Bool) -> [String] {
         var args: [String] = []
-        if hardwareDecode { args += ["-hwaccel", "videotoolbox"] }
+        if hardwareDecode && plan.hardwareDecode { args += ["-hwaccel", "videotoolbox"] }
         if let start = plan.trim?.start, start > 0 { args += ["-ss", number(start)] }
         args += ["-i", input.path]
         if plan.trim != nil, plan.trim?.end != nil { args += ["-t", number(plan.duration)] }
@@ -197,8 +197,18 @@ public enum FFmpegCommandBuilder {
         return args
     }
 
+    /// Tags that carry where a video or photo was taken (QuickTime/iPhone and MP4 styles).
+    static let locationTags = ["location", "location-eng", "com.apple.quicktime.location.ISO6709",
+                               "com.apple.quicktime.location.accuracy.horizontal", "com.apple.quicktime.location.name",
+                               "com.apple.quicktime.location.body", "com.apple.quicktime.location.note",
+                               "com.apple.quicktime.location.role", "com.apple.quicktime.location.date"]
+
     static func metadataArguments(plan: MediaPlan) -> [String] {
         var args = plan.stripMetadata ? ["-map_metadata", "-1", "-map_chapters", "-1"] : ["-map_metadata", "0"]
+        if !plan.stripMetadata && plan.removeLocation {
+            // An empty value deletes the key.
+            for tag in locationTags { args += ["-metadata", "\(tag)="] }
+        }
         var flags: [String] = []
         if plan.fastStart && ["mp4", "mov", "ipod"].contains(plan.container) { flags.append("+faststart") }
         if !plan.stripMetadata && plan.container == "mov" { flags.append("+use_metadata_tags") }

@@ -166,7 +166,7 @@ public struct ImageOptions: Codable, Sendable, Hashable {
     public var resize: ResizeMode = .none
     public var allowUpscale = false
     public var colorProfile: ColorProfileOption = .keep
-    public var metadata: MetadataPolicy = .keep
+    public var metadata: MetadataPolicy = .removeLocation
     /// Lossless WebP/AVIF/HEIC/JPEG 2000 encoding.
     public var lossless = false
     public var progressive = false
@@ -182,6 +182,8 @@ public struct ImageOptions: Codable, Sendable, Hashable {
     public var dpi: Int?
     /// Rasterization resolution for PDF pages.
     public var pdfDPI: Double = 150
+    /// Compressing PDFs: resolution of the images inside (nil = from the quality slider).
+    public var pdfImageDPI: Int?
     public var pdfPages: PageSelection = .all
     public var pdfPageSize: PDFPageSize = .fitImage
     /// Scale factor for SVG rendering (1 = intrinsic size).
@@ -558,6 +560,8 @@ public struct VideoOptions: Codable, Sendable, Hashable {
     public var flipHorizontal = false
     public var flipVertical = false
     public var stripMetadata = false
+    /// Drops GPS location tags (on by default; `stripMetadata` removes everything).
+    public var removeLocation = true
     public var fastStart = true
     public var customArguments = ""
     public var gif = GIFOptions()
@@ -585,6 +589,8 @@ public struct AudioOptions: Codable, Sendable, Hashable {
     public var trim: TrimRange?
     public var keepCoverArt = true
     public var stripMetadata = false
+    /// Drops GPS location tags (e.g. when extracting audio from an iPhone video).
+    public var removeLocation = true
     public var customArguments = ""
 
     public init() {}
@@ -636,5 +642,136 @@ public struct ConversionSettings: Codable, Sendable, Hashable {
         }
         let body = payload.map { String(decoding: $0, as: UTF8.self) } ?? ""
         return "\(target.rawValue)|\(body)"
+    }
+}
+
+// MARK: - Tolerant decoding
+
+// Settings and presets are saved as JSON. These decoders keep working when a newer version adds
+// options: missing or unreadable keys fall back to their defaults instead of failing the whole decode.
+
+extension KeyedDecodingContainer {
+    func value<T: Decodable>(_ key: Key, or fallback: T) -> T {
+        (try? decodeIfPresent(T.self, forKey: key)) ?? fallback
+    }
+
+    func optional<T: Decodable>(_ key: Key) -> T? {
+        (try? decodeIfPresent(T.self, forKey: key)) ?? nil
+    }
+}
+
+extension ImageOptions {
+    public init(from decoder: any Decoder) throws {
+        self.init()
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        quality = c.value(.quality, or: quality)
+        sizeLimit = c.optional(.sizeLimit)
+        resize = c.value(.resize, or: resize)
+        allowUpscale = c.value(.allowUpscale, or: allowUpscale)
+        colorProfile = c.value(.colorProfile, or: colorProfile)
+        metadata = c.value(.metadata, or: metadata)
+        lossless = c.value(.lossless, or: lossless)
+        progressive = c.value(.progressive, or: progressive)
+        chroma = c.value(.chroma, or: chroma)
+        pngOptimization = c.value(.pngOptimization, or: pngOptimization)
+        pngDithering = c.value(.pngDithering, or: pngDithering)
+        flattenColor = c.value(.flattenColor, or: flattenColor)
+        keepAnimation = c.value(.keepAnimation, or: keepAnimation)
+        icoSizes = c.value(.icoSizes, or: icoSizes)
+        dpi = c.optional(.dpi)
+        pdfDPI = c.value(.pdfDPI, or: pdfDPI)
+        pdfImageDPI = c.optional(.pdfImageDPI)
+        pdfPages = c.value(.pdfPages, or: pdfPages)
+        pdfPageSize = c.value(.pdfPageSize, or: pdfPageSize)
+        svgScale = c.value(.svgScale, or: svgScale)
+        trace = c.value(.trace, or: trace)
+        webpMethod = c.value(.webpMethod, or: webpMethod)
+    }
+}
+
+extension AudioTrackOptions {
+    public init(from decoder: any Decoder) throws {
+        self.init()
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = c.value(.enabled, or: enabled)
+        encoder = c.value(.encoder, or: encoder)
+        bitrateKbps = c.optional(.bitrateKbps)
+        sampleRate = c.optional(.sampleRate)
+        channels = c.value(.channels, or: channels)
+    }
+}
+
+extension GIFOptions {
+    public init(from decoder: any Decoder) throws {
+        self.init()
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        fps = c.optional(.fps)
+        maxWidth = c.optional(.maxWidth)
+        colors = c.optional(.colors)
+        dither = c.value(.dither, or: dither)
+        loop = c.value(.loop, or: loop)
+    }
+}
+
+extension VideoOptions {
+    public init(from decoder: any Decoder) throws {
+        self.init()
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        quality = c.value(.quality, or: quality)
+        sizeLimit = c.optional(.sizeLimit)
+        encoder = c.optional(.encoder)
+        container = c.optional(.container)
+        rateControl = c.value(.rateControl, or: rateControl)
+        constantQuality = c.value(.constantQuality, or: constantQuality)
+        bitrateKbps = c.value(.bitrateKbps, or: bitrateKbps)
+        speed = c.value(.speed, or: speed)
+        resolution = c.value(.resolution, or: resolution)
+        allowUpscale = c.value(.allowUpscale, or: allowUpscale)
+        frameRate = c.value(.frameRate, or: frameRate)
+        keyframeSeconds = c.value(.keyframeSeconds, or: keyframeSeconds)
+        bitDepth = c.value(.bitDepth, or: bitDepth)
+        hdr = c.value(.hdr, or: hdr)
+        toneMapper = c.value(.toneMapper, or: toneMapper)
+        proresProfile = c.optional(.proresProfile)
+        audio = c.value(.audio, or: audio)
+        trim = c.optional(.trim)
+        rotation = c.value(.rotation, or: rotation)
+        flipHorizontal = c.value(.flipHorizontal, or: flipHorizontal)
+        flipVertical = c.value(.flipVertical, or: flipVertical)
+        stripMetadata = c.value(.stripMetadata, or: stripMetadata)
+        removeLocation = c.value(.removeLocation, or: removeLocation)
+        fastStart = c.value(.fastStart, or: fastStart)
+        customArguments = c.value(.customArguments, or: customArguments)
+        gif = c.value(.gif, or: gif)
+        frameTime = c.value(.frameTime, or: frameTime)
+    }
+}
+
+extension AudioOptions {
+    public init(from decoder: any Decoder) throws {
+        self.init()
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        quality = c.value(.quality, or: quality)
+        sizeLimit = c.optional(.sizeLimit)
+        bitrateKbps = c.optional(.bitrateKbps)
+        variableBitrate = c.value(.variableBitrate, or: variableBitrate)
+        sampleRate = c.optional(.sampleRate)
+        channels = c.value(.channels, or: channels)
+        normalizeLoudness = c.value(.normalizeLoudness, or: normalizeLoudness)
+        trim = c.optional(.trim)
+        keepCoverArt = c.value(.keepCoverArt, or: keepCoverArt)
+        stripMetadata = c.value(.stripMetadata, or: stripMetadata)
+        removeLocation = c.value(.removeLocation, or: removeLocation)
+        customArguments = c.value(.customArguments, or: customArguments)
+    }
+}
+
+extension ConversionSettings {
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(target: try c.decode(OutputFormat.self, forKey: .target))
+        image = c.value(.image, or: image)
+        video = c.value(.video, or: video)
+        audio = c.value(.audio, or: audio)
     }
 }
