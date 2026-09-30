@@ -17,6 +17,58 @@
   <img src="docs/screenshots/main.png" alt="Morph fitting photos, videos, audio and a PDF for Discord" width="920">
 </p>
 
+## What's new in 1.1
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/fit-for.png" alt="Fit for Email, Discord, WhatsApp, GitHub, X, upload forms and websites"><br>
+      <b>Fit for…</b> Pick where the files are going. Morph sets the format, size limit and resolution that work there, for photos, videos, audio and PDFs at once.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/pdf-compress.png" alt="Compress PDF, recommended, with an exact size estimate"><br>
+      <b>Compress PDFs.</b> The images inside are downsampled and re-compressed; text, links, forms and the outline stay as they are. This 3.6 MB guide became 601 KB.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src="docs/screenshots/privacy.png" alt="Limit file size and Remove location"><br>
+      <b>Private by default.</b> GPS location is removed from photos and videos unless you choose to keep it. Size limits work for every kind of file.
+    </td>
+    <td valign="top">
+      <img src="docs/screenshots/compatibility.png" alt="Format tiles marked by who can open them"><br>
+      <b>Formats people can open.</b> Tiles are marked <i>Opens everywhere</i>, <i>Newer devices</i> or <i>Best on Apple devices</i>, and the new <b>Auto</b> format picks JPEG, PNG or GIF for each file.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src="docs/screenshots/errors.png" alt="A plain-language error with Copy Diagnostics and Report a Problem"><br>
+      <b>Problems, explained.</b> Errors say what went wrong and what to try. <b>Report a Problem…</b> pre-fills a GitHub issue without file names or paths.
+    </td>
+    <td valign="top">
+      <img src="docs/screenshots/update.png" alt="Morph's update window showing version 1.1.0"><br>
+      <b>Notarized, and updates itself.</b> Signed with a Developer ID, notarized by Apple, and kept current with signed automatic updates.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <img src="docs/screenshots/integrations.png" alt="Finder Quick Actions and Shortcuts settings"><br>
+      <b>Finder, Shortcuts and Spotlight.</b> <i>Compress with Morph</i> from Finder's Quick Actions, and <i>Convert Files</i>, <i>Compress Files</i> and <i>Make Files Fit</i> in Shortcuts, Spotlight and folder automations.
+    </td>
+    <td valign="top">
+      <img src="docs/screenshots/menubar.png" alt="Menu bar panel with Fit for drop targets" width="300"><br>
+      <b>Drop on a destination.</b> The menu bar panel has a <i>Fit for</i> row: drag files onto Email, Discord or any other destination.
+    </td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="docs/screenshots/summary.png" alt="Summary above Convert: Fit for Discord, 4 images to Auto, 2 videos to MP4, 1 audio file to MP3, 1 PDF to a smaller PDF" width="760"><br>
+  <sub>A summary above <b>Convert</b> shows exactly what will happen to each kind of file.</sub>
+</p>
+
+Tested against 80+ real-world files (408 conversions), from iPhone Dolby Vision video and ProRAW to scanned, password-protected and damaged files. See the [release notes](https://github.com/milescs/Morph/releases/tag/v1.1.0) for everything that changed.
+
 ## Why Morph
 
 - **Make it fit:** pick where the files are going (Email, Discord, WhatsApp, GitHub, X, an upload form or a website) and Morph sets the format, size limit and resolution that work there. Or set any limit yourself, like **≤ 2 MB**: Morph lowers quality, then resolution, until each file fits.
@@ -47,44 +99,38 @@
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/pdf.png" alt="Compressing a PDF"></td>
     <td><img src="docs/screenshots/converting.png" alt="Converting several files in parallel"></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>Compress PDFs: 3.6 MB → 0.6 MB, text stays sharp</sub></td>
-    <td align="center"><sub>Batches convert in order, in parallel</sub></td>
-  </tr>
-  <tr>
     <td><img src="docs/screenshots/done.png" alt="Conversion finished"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Batches convert in order, in parallel</sub></td>
+    <td align="center"><sub>Everything fits: 63.5 MB saved</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/pdf.png" alt="Compressing a PDF"></td>
     <td><img src="docs/screenshots/pro-video.png" alt="Pro options for video"></td>
   </tr>
   <tr>
-    <td align="center"><sub>Everything fits</sub></td>
+    <td align="center"><sub>PDFs: 3.6 MB → 601 KB</sub></td>
     <td align="center"><sub>Pro mode: every encoder option</sub></td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/compare.png" alt="Before and after comparison"></td>
-    <td><img src="docs/screenshots/failure.png" alt="A plain-language error with Report a Problem"></td>
+    <td><img src="docs/screenshots/save-panel.png" alt="Save panel opens in the original folder"></td>
   </tr>
   <tr>
     <td align="center"><sub>Compare before &amp; after</sub></td>
-    <td align="center"><sub>Plain-language errors, one-click reports</sub></td>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/save-panel.png" alt="Save panel opens in the original folder"></td>
-    <td><img src="docs/screenshots/empty.png" alt="Drop files or folders"></td>
-  </tr>
-  <tr>
     <td align="center"><sub>Saves next to your originals by default</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/empty.png" alt="Drop files or folders"></td>
+    <td><img src="docs/screenshots/dmg.png" alt="Morph installer"></td>
+  </tr>
+  <tr>
     <td align="center"><sub>Everything happens on your Mac</sub></td>
+    <td align="center"><sub>Drag to Applications to install</sub></td>
   </tr>
 </table>
-
-<p align="center">
-  <img src="docs/screenshots/menubar.png" alt="Morph menu bar panel with quick actions and destinations" width="340">
-  &nbsp;&nbsp;
-  <img src="docs/screenshots/dmg.png" alt="Morph installer" width="520">
-</p>
 
 ## Download
 

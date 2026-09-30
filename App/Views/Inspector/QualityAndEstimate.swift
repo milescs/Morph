@@ -283,7 +283,9 @@ struct SizeLimitSection: View {
                     HStack {
                         Text("Maximum per file")
                         Spacer()
-                        TextField("MB", text: $text)
+                        // In a Form a TextField's title shows as a label, so hide it (it read "MB 10 MB").
+                        TextField("Maximum size in megabytes", text: $text, prompt: Text("MB"))
+                            .labelsHidden()
                             .frame(width: 70)
                             .multilineTextAlignment(.trailing)
                             .onSubmit { commit() }
