@@ -181,6 +181,6 @@ xmllint --noout "$ROOT/build/appcast.xml"
 echo "==> Packaging FFmpeg corresponding source"
 ./scripts/package-ffmpeg-source.sh "$ROOT/build/Morph-$VERSION-ffmpeg-source.tar"
 
-shasum -a 256 "$DMG" "$ROOT/build/Morph-$VERSION-ffmpeg-source.tar" > "$ROOT/build/Morph-$VERSION-SHA256.txt"
+(cd "$ROOT/build" && shasum -a 256 "Morph-$VERSION.dmg" "Morph-$VERSION-ffmpeg-source.tar" > "Morph-$VERSION-SHA256.txt")
 echo "==> Done:"
 ls -lh "$DMG" "$ROOT/build/appcast.xml" "$ROOT/build/Morph-$VERSION-ffmpeg-source.tar"
